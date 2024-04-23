@@ -81,7 +81,7 @@ export default class Table {
 			let index = this.database.findIndex(this.name, ...keys);
 			if (index == undefined) {
 				if (process.env.NODE_ENV === 'development') {
-					console.warn(`Finding "${this.name}" by ${enumerate(keys)} can be slow without an index`);
+					console.warn(`Finding "${this.name}" by ${enumerate(...keys)} can be slow without an index`);
 
 					if (autoindex) {
 						console.warn(`An index will be created at runtime to improve lookup`);

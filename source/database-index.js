@@ -26,7 +26,7 @@ export default class Index {
 			if (ids == undefined) throw new Error(`Can not create index on non-existing table "${table.name}"`);
 
 			let index = database.findIndex(table.name, ...keys);
-			if (index) throw new Error(`Index on ${enumerate(keys)} already exists on table "${table.name}"`);
+			if (index) throw new Error(`Index on ${enumerate(...keys)} already exists on table "${table.name}"`);
 
 			for (let id of ids) {
 				let key = table.index.key(id);
