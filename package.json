@@ -1,0 +1,23 @@
+{
+	"name": "key-value-database",
+	"version": "0.0.1",
+	"description": "A database for key value stores",
+	"main": "build/index.js",
+	"type": "module",
+	"scripts": {
+		"test": "node source/test.js",
+		"build": "esbuild source/index.js --outfile=build/index.js --bundle --format=esm --minify",
+		"develop": "esbuild source/index.js --outfile=build/index.js --bundle --format=esm --sourcemap --watch",
+		"prepare": "npm run build"
+	},
+	"keywords": [],
+	"author": "SubHero",
+	"license": "ISC",
+	"dependencies": {
+		"nanoid": "^5.0.7"
+	},
+	"devDependencies": {
+		"esbuild": "^0.20.2",
+		"node-localstorage": "^3.0.5"
+	}
+}
