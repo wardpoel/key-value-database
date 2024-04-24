@@ -64,12 +64,28 @@ export default class Table {
 		return id;
 	}
 
+	findKey(props) {
+		if (props == undefined) {
+			return this.key();
+		} else {
+			let keys = Object.keys(props);
+			if (keys.length === 0) return this.key();
+
+			let index = this.database.findIndex(this.name, ...keys);
+			if (index) {
+				return index.key(props);
+			}
+		}
+	}
+
 	/**
 	 * @param {Object|undefined} [props]
 	 * @param {boolean} autoindex
 	 * @returns {Array<Id>}
 	 */
 	find(props, autoindex = this.database.autoindex) {
+		let key = this.findKey(props);
+
 		if (props == undefined) {
 			let key = this.key();
 			let ids = this.database.storage.getItem(key) ?? [];

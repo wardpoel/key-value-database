@@ -17,6 +17,9 @@
 	"dependencies": {
 		"nanoid": "^5.0.7"
 	},
+	"peerDependencies": {
+		"react": "^18.2.0"
+	},
 	"devDependencies": {
 		"esbuild": "^0.20.2",
 		"node-localstorage": "^3.0.5",
