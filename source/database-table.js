@@ -41,10 +41,42 @@ export default class Table {
 	}
 
 	/**
-	 * @returns {string}
+	 * @param {Id|Object} [props]
+	 * @returns {string|undefined}
 	 */
-	key() {
-		return `${this.database.prefix}${this.name}`;
+	key(props, autoindex = this.database.autoindex) {
+		if (props == undefined) {
+			return `${this.database.prefix}${this.name}`;
+		} else if (typeof props === 'string' || typeof props === 'number') {
+			return this.index.key(props);
+		} else {
+			let keys = Object.keys(props);
+			if (keys.length === 0) return this.key();
+
+			let index = this.database.findIndex(this.name, ...keys);
+			if (index) {
+				return index.key(props);
+			} else {
+				if (process.env.NODE_ENV === 'development') {
+					let autoindexWarning;
+					if (autoindex) {
+						autoindexWarning = `An index will be created at runtime to improve lookup`;
+					} else {
+						autoindexWarning = `Please create an index for these properties`;
+					}
+
+					console.warn(
+						`Finding "${this.name}" by ${enumerate(...keys)} can be slow without an index. ${autoindexWarning}`,
+					);
+				}
+
+				if (autoindex) {
+					let index = this.database.addIndex(this.name, ...keys);
+					let indexKey = index.key(props);
+					return indexKey;
+				}
+			}
+		}
 	}
 
 	/**
@@ -64,59 +96,21 @@ export default class Table {
 		return id;
 	}
 
-	findKey(props) {
-		if (props == undefined) {
-			return this.key();
-		} else {
-			let keys = Object.keys(props);
-			if (keys.length === 0) return this.key();
-
-			let index = this.database.findIndex(this.name, ...keys);
-			if (index) {
-				return index.key(props);
-			}
-		}
-	}
-
 	/**
-	 * @param {Object|undefined} [props]
+	 * @param {Object} [props]
 	 * @param {boolean} autoindex
 	 * @returns {Array<Id>}
 	 */
 	find(props, autoindex = this.database.autoindex) {
-		let key = this.findKey(props);
-
-		if (props == undefined) {
-			let key = this.key();
-			let ids = this.database.storage.getItem(key) ?? [];
-			return ids;
+		let key = this.key(props);
+		if (key) {
+			return this.database.storage.getItem(key);
 		} else {
+			let rows = this.select();
 			let keys = Object.keys(props);
-			if (keys.length === 0) return this.find();
-
-			let index = this.database.findIndex(this.name, ...keys);
-			if (index == undefined) {
-				if (process.env.NODE_ENV === 'development') {
-					console.warn(`Finding "${this.name}" by ${enumerate(...keys)} can be slow without an index`);
-
-					if (autoindex) {
-						console.warn(`An index will be created at runtime to improve lookup`);
-					} else {
-						console.warn(`Please create an index for these properties`);
-					}
-				}
-
-				if (autoindex) {
-					index = this.database.addIndex(this.name, ...keys);
-				} else {
-					let tableRows = this.select();
-					let selectedRows = tableRows.filter(item => keys.every(key => item[key] === props[key]));
-					let selectedRowIds = selectedRows.map(row => row.id);
-					return selectedRowIds;
-				}
-			}
-
-			return index.find(props);
+			let selection = rows.filter(item => keys.every(key => item[key] === props[key]));
+			let selectionIds = selection.map(row => row.id);
+			return selectionIds;
 		}
 	}
 
@@ -135,17 +129,13 @@ export default class Table {
 	 * @returns {Array<Object>|Object|undefined}
 	 */
 	select(props, autoindex = this.database.autoindex) {
-		if (typeof props === 'string' || typeof props === 'number') {
-			let key = this.index.key(props);
-			let row = this.database.storage.getItem(key);
-			return row;
-		} else {
-			let ids = this.find(props, autoindex);
-			if (ids == undefined) return [];
-
-			let keys = ids.map(id => this.index.key(id));
-			let rows = keys.map(key => this.database.storage.getItem(key));
-			return rows;
+		let key = this.key(props, autoindex);
+		if (key) {
+			let value = this.database.storage.getItem(key);
+			if (value instanceof Array) {
+				value = value.map(id => this.database.storage.getItem(this.index.key(id)));
+			}
+			return value;
 		}
 	}
 

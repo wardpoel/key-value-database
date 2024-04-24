@@ -9,15 +9,28 @@ import { useMemo } from 'react';
  * @param {Object|undefined} [props]
  */
 export function useFind(database, tableName, props) {
-	let indexKeys = Object.keys(props);
-	let index = database.assertIndex(tableName, ...indexKeys);
-	let indexKey = index?.key(props);
+	let key = useMemo(() => {
+		let table = database.findTable(tableName)
+		if (table) {
+			return table.findKey(props)
+		}
+	}, [props]);
+
+	useEffect(() => {
+		// subscribe to database
+	}, [key])
 
 	return useMemo(() => {
-		database.storage.getItem(indexKey);
-	}, [indexKey]);
+		if (key == undefined) return 
+		
+		return database.storage.getItem(key) ?? [];
+	}, [key]);
 }
 
-export function useCount(database, tableName, props, autoindex) {}
+export function useCount(database, tableName, props) {
+	return useFind(database, tableName, props)?.length
+}
 
-export function useSelect(database, tableName, props, autoindex) {}
+export function useSelect(database, tableName, props) {
+	if (typeof props === 'string')
+}
