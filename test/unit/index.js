@@ -1,11 +1,11 @@
 import Test from 'node:test';
-import Database from '../source/index.js';
+import Database from '../../source/index.js';
 
 import { LocalStorage } from 'node-localstorage';
 
 import assert from 'node:assert/strict';
 
-let localStorage = new LocalStorage('./test/storage');
+let localStorage = new LocalStorage('./test/unit/storage');
 
 Test.beforeEach(async () => {
 	localStorage.clear();

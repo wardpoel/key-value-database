@@ -1,7 +1,7 @@
 export let client = new URL('http://localhost:5173');
 
 export default {
-	root: 'source',
+	root: 'test/integration',
 	build: {
 		outDir: '../../build',
 		emptyOutDir: true,

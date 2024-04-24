@@ -1,3 +1,3 @@
-import Database from 'key-value-database';
+import Database from '../../source/index.js';
 
 window.Database = Database;
