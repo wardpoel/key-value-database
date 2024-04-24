@@ -95,7 +95,7 @@ export default class Index {
 	 */
 	find(props, ...other) {
 		let key = this.key(props, ...other);
-		let ids = this.database.storage.getItem(key);
+		let ids = this.database.storage.getItem(key) ?? [];
 		return ids;
 	}
 

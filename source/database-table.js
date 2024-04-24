@@ -67,12 +67,12 @@ export default class Table {
 	/**
 	 * @param {Object|undefined} [props]
 	 * @param {boolean} autoindex
-	 * @returns
+	 * @returns {Array<Id>}
 	 */
 	find(props, autoindex = this.database.autoindex) {
 		if (props == undefined) {
 			let key = this.key();
-			let ids = this.database.storage.getItem(key);
+			let ids = this.database.storage.getItem(key) ?? [];
 			return ids;
 		} else {
 			let keys = Object.keys(props);
@@ -110,13 +110,13 @@ export default class Table {
 	 * @returns {number}
 	 */
 	count(props, autoindex = this.database.autoindex) {
-		return this.find(props, autoindex).length;
+		return this.find(props, autoindex)?.length ?? 0;
 	}
 
 	/**
 	 * @param {Object|Id|undefined} [props]
 	 * @param {boolean} autoindex
-	 * @returns {Array<Object>|Object}
+	 * @returns {Array<Object>|Object|undefined}
 	 */
 	select(props, autoindex = this.database.autoindex) {
 		if (typeof props === 'string' || typeof props === 'number') {
@@ -125,6 +125,8 @@ export default class Table {
 			return row;
 		} else {
 			let ids = this.find(props, autoindex);
+			if (ids == undefined) return [];
+
 			let keys = ids.map(id => this.index.key(id));
 			let rows = keys.map(key => this.database.storage.getItem(key));
 			return rows;

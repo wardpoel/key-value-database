@@ -8,7 +8,7 @@ export default class JSONStorage {
 
 	/**
 	 * @param {number} index
-	 * @returns {any}
+	 * @returns {string|null}
 	 */
 	key(index) {
 		return this.value.key(index);
@@ -16,7 +16,7 @@ export default class JSONStorage {
 
 	/**
 	 * @param {string} key
-	 * @returns {any}
+	 * @returns {Object|undefined}
 	 */
 	getItem(key) {
 		let value = this.value.getItem(key);
@@ -27,7 +27,7 @@ export default class JSONStorage {
 
 	/**
 	 * @param {string} key
-	 * @param {any} value
+	 * @param {Object} value
 	 */
 	setItem(key, value) {
 		this.value.setItem(key, JSON.stringify(value));
