@@ -9,7 +9,7 @@ import enumerate from './utilities/string/enumerate.js';
 export default class Database {
 	/**
 	 * @param {Storage} storage
-	 * @param {{ prefix?: string, migrations: Array<function>, autoindex: boolean, entropy: number }} options
+	 * @param {{ prefix?: string, migrations?: Array<function>, autoindex?: boolean, entropy?: number }} [options]
 	 */
 	constructor(storage, options) {
 		let { prefix = '', migrations = [], autoindex = false, entropy = 1000000 } = options ?? {};
@@ -48,7 +48,7 @@ export default class Database {
 
 	/**
 	 * @param {string} tableName
-	 * @param {string} entryName
+	 * @param {string} [entryName]
 	 * @returns {Table}
 	 */
 	addTable(tableName, entryName) {
@@ -159,8 +159,8 @@ export default class Database {
 
 	/**
 	 * @param {string} tableName
-	 * @param {Object} props
-	 * @param {boolean} autoindex
+	 * @param {Object} [props]
+	 * @param {boolean} [autoindex]
 	 * @returns {number}
 	 */
 	count(tableName, props, autoindex = this.autoindex) {
@@ -169,8 +169,8 @@ export default class Database {
 
 	/**
 	 * @param {string} tableName
-	 * @param {Object|Id} props
-	 * @param {boolean} autoindex
+	 * @param {Object|Id} [props]
+	 * @param {boolean} [autoindex]
 	 * @returns {Array<Object>|Object}
 	 */
 	select(tableName, props, autoindex = this.autoindex) {
@@ -189,7 +189,7 @@ export default class Database {
 	/**
 	 * @param {string} tableName
 	 * @param {Object} row
-	 * @param {Object} props
+	 * @param {Object} [props]
 	 * @returns {Object}
 	 */
 	update(tableName, row, props = {}) {
@@ -198,7 +198,7 @@ export default class Database {
 
 	/**
 	 * @param {string} tableName
-	 * @param {Object} row
+	 * @param {Object|Id} row
 	 * @returns {Object}
 	 */
 	delete(tableName, row) {

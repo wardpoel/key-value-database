@@ -11,7 +11,7 @@ export default class Table {
 	/**
 	 * @param {Database} database
 	 * @param {string} tableName
-	 * @param {string} entryName
+	 * @param {string} [entryName]
 	 */
 	constructor(database, tableName, entryName) {
 		this.name = tableName;
@@ -192,7 +192,7 @@ export default class Table {
 
 	/**
 	 * @param {Object} row
-	 * @returns {Object}
+	 * @returns {Object|Id}
 	 */
 	delete(row) {
 		let rowId = typeof row === 'object' ? row.id : row;
