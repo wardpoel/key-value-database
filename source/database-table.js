@@ -17,7 +17,7 @@ export default class Table {
 		this.name = tableName;
 		this.database = database;
 
-		let tableKey = this.key();
+		let tableKey = /** @type {string} */ (this.key());
 		let tableIds = database.storage.getItem(tableKey);
 		if (tableIds) throw new Error(`Table "${this.name}" already exists`);
 
@@ -84,7 +84,7 @@ export default class Table {
 	 * @returns {Id}
 	 */
 	id(entropy = this.database.entropy) {
-		let key = this.key();
+		let key = /** @type {string} */ (this.key());
 		let ids = this.database.storage.getItem(key) ?? [];
 		let size = Math.ceil(Math.log2(entropy * Math.max(ids.length, 1)) / Math.log2(alphabet.length));
 
@@ -102,7 +102,7 @@ export default class Table {
 	 * @returns {Array<Id>}
 	 */
 	find(props, autoindex = this.database.autoindex) {
-		let key = this.key(props);
+		let key = this.key(props, autoindex);
 		if (key) {
 			return this.database.storage.getItem(key);
 		} else {
@@ -158,7 +158,7 @@ export default class Table {
 
 		let row = { id: rowId, ...other };
 
-		let tableKey = this.key();
+		let tableKey = /** @type {string} */ (this.key());
 		let tableIds = this.database.storage.getItem(tableKey);
 		if (tableIds == undefined) {
 			throw new Error(`Table "${this.name}" does not exists yet`);
@@ -203,7 +203,7 @@ export default class Table {
 	delete(row) {
 		let rowId = typeof row === 'object' ? row.id : row;
 
-		let tableKey = this.key();
+		let tableKey = /** @type {string} */ (this.key());
 		let tableIds = this.database.storage.getItem(tableKey);
 		let rowIndex = tableIds.indexOf(rowId);
 		if (rowIndex !== -1) {
@@ -224,7 +224,7 @@ export default class Table {
 	}
 
 	destroy() {
-		let tableKey = this.key();
+		let tableKey = /** @type {string} */ (this.key());
 		let storageKeys = Object.keys(this.database.storage.value);
 
 		for (let storageKey of storageKeys) {
