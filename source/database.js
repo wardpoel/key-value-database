@@ -17,6 +17,9 @@ export default class Database {
 		this.prefix = prefix;
 		this.storage = new JSONStorage(storage);
 
+		/** @type {Object<string,Array<function>>} */
+		this.listeners = {};
+
 		let version = this.version ?? 0;
 		let migrate = migrations.slice(version);
 
@@ -203,5 +206,27 @@ export default class Database {
 	 */
 	delete(tableName, row) {
 		return this.assertTable(tableName).delete(row);
+	}
+
+	subscribe(key, callback) {
+		let listeners = this.listeners[key];
+		if (listeners) {
+			listeners.push(callback);
+		} else {
+			this.listeners[key] = [callback];
+		}
+
+		return this.unsubscribe.bind(this, key, callback);
+	}
+
+	unsubscribe(key, callback) {
+		let listeners = this.listeners[key];
+		if (listeners?.includes(callback)) {
+			if (listeners.length === 1) {
+				delete this.listeners[key];
+			} else {
+				this.listeners[key] = listeners.filter(listener => listener !== callback);
+			}
+		}
 	}
 }
