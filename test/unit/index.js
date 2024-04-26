@@ -223,10 +223,8 @@ Test('delete row with id', () => {
 	assert.deepStrictEqual(deletedCar.color, 'red');
 });
 
-Test.only('delete table', () => {
+Test('delete table', () => {
 	let database = new Database(localStorage);
-
-	debugger;
 
 	database.addTable('cars');
 	database.addIndex('cars', 'color');

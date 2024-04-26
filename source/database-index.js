@@ -22,15 +22,15 @@ export default class Index {
 		let tableRegistered = database.tables[table.name];
 		if (tableRegistered) {
 			let key = table.key();
-			let ids = database.storage.getItem(key);
+			let ids = database.getItem(key);
 			if (ids == undefined) throw new Error(`Can not create index on non-existing table "${table.name}"`);
 
 			let index = database.findIndex(table.name, ...keys);
 			if (index) throw new Error(`Index on ${enumerate(...keys)} already exists on table "${table.name}"`);
 
 			for (let id of ids) {
-				let key = table.index.key(id);
-				let row = database.storage.getItem(key);
+				let key = table.indexById.key(id);
+				let row = database.getItem(key);
 
 				this.add(row);
 			}
@@ -63,10 +63,10 @@ export default class Index {
 	 */
 	add(row) {
 		let key = this.key(row);
-		let ids = this.database.storage.getItem(key) ?? [];
+		let ids = this.database.getItem(key) ?? [];
 		let index = ids.indexOf(row.id);
 		if (index === -1) {
-			this.database.storage.setItem(key, [...ids, row.id]);
+			this.database.setItem(key, [...ids, row.id]);
 		}
 	}
 
@@ -75,14 +75,14 @@ export default class Index {
 	 */
 	remove(row) {
 		let key = this.key(row);
-		let ids = this.database.storage.getItem(key);
+		let ids = this.database.getItem(key);
 		if (ids) {
 			let index = ids.indexOf(row.id);
 			if (index !== -1) {
 				if (ids.length === 1) {
-					this.database.storage.removeItem(key);
+					this.database.removeItem(key);
 				} else {
-					this.database.storage.setItem(key, [...ids.slice(0, index), ...ids.slice(index + 1)]);
+					this.database.setItem(key, [...ids.slice(0, index), ...ids.slice(index + 1)]);
 				}
 			}
 		}
@@ -95,14 +95,14 @@ export default class Index {
 	 */
 	find(props, ...other) {
 		let key = this.key(props, ...other);
-		let ids = this.database.storage.getItem(key) ?? [];
+		let ids = this.database.getItem(key) ?? [];
 		return ids;
 	}
 
 	destroy() {
 		let rows = this.table.select();
 		for (let row of rows) {
-			this.database.storage.removeItem(this.key(row));
+			this.database.removeItem(this.key(row));
 		}
 	}
 }

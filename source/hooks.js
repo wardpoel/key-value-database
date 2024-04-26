@@ -1,7 +1,6 @@
-import { useRef, useMemo, useEffect, useSyncExternalStore } from 'react';
+import { useRef, useMemo, useSyncExternalStore, useCallback } from 'react';
 
-import useImmutableCallback from './hooks/use-immutable-callback.js';
-
+/** @typedef {import('./database.js').Id} Id */
 /** @typedef {import('./database.js').default} Database */
 
 /**
@@ -9,71 +8,138 @@ import useImmutableCallback from './hooks/use-immutable-callback.js';
  * @typedef {import('react').MutableRefObject<T>} MutableRefObject<T>
  */
 
-function useKey(database, tableName, props) {
-	/** @type {MutableRefObject<function>} */
-	let callbackRef = useRef();
+/**
+ * @param {Database} database
+ * @param {string} tableName
+ * @param {Id} id
+ */
+export function useFind(database, tableName, id) {
+	let snapshotCacheRef = useRef();
 
-	let key = useMemo(() => {
-		let table = database.findTable(tableName);
-		if (table) {
-			return table.key(props);
-		}
-	}, [database, tableName, props]);
-
-	let keyValue = useMemo(() => {
-		return database.storage.getItem(key);
-	}, [database, key]);
-
-	let subscribe = useMemo(() => {
-		return function (callback) {
-			callbackRef.current = callback;
-			let unsubscribe = database.subscribe(key, callback);
-			return function () {
-				unsubscribe();
-				callbackRef.current = undefined;
-			};
-		};
-	}, [database, key]);
-
-	let value = useSyncExternalStore(subscribe, () => keyValue);
-
-	let handler = useImmutableCallback(
+	let subscribe = useCallback(
 		/**
-		 * @param {StorageEvent} event
+		 * @param {() => void} callback
 		 */
-		event => {
-			let sameStorage = database.storage.value === event.storageArea;
-			if (sameStorage) {
-				let sameKey = key === event.key;
-				if (sameKey) {
-					callbackRef;
-				}
-			}
+		callback => {
+			return database.subscribeToRow(tableName, id, () => {
+				snapshotCacheRef.current = undefined;
+				callback();
+			});
 		},
+		[database, tableName, id],
 	);
 
-	useEffect(() => {
-		window.addEventListener('storage', handler);
+	let snapshot = function () {
+		if (snapshotCacheRef.current == undefined) {
+			snapshotCacheRef.current = database.find(tableName, id);
+		}
 
-		return () => {
-			window.removeEventListener('storage', handler);
-		};
-	}, [handler]);
+		return snapshotCacheRef.current;
+	};
 
-	return value;
+	return useSyncExternalStore(subscribe, snapshot);
 }
 
 /**
  * @param {Database} database
  * @param {string} tableName
- * @param {Object|undefined} [props]
+ * @param {Object} [props]
+ * @returns {Array<Id>}
  */
-export function useFind(database, tableName, props) {}
+export function useIndex(database, tableName, props = {}) {
+	/** @type {MutableRefObject<Array<Id>>} */
+	let snapshotCacheRef = useRef();
 
-export function useCount(database, tableName, props) {
-	// return useFind(database, tableName, props)?.length;
+	/** @type {MutableRefObject<[string,any]>} */
+	let propsCacheRef = useRef();
+	if (propsCacheRef.current == undefined) {
+		propsCacheRef.current = [JSON.stringify(props), props];
+	}
+
+	let cachedProps = useMemo(() => {
+		let json = JSON.stringify(props);
+		if (json !== propsCacheRef.current[0]) {
+			propsCacheRef.current = [json, props];
+		}
+
+		return propsCacheRef.current[1];
+	}, [props]);
+
+	let subscribe = useCallback(
+		callback => {
+			return database.subscribeToIndex(tableName, cachedProps, () => {
+				snapshotCacheRef.current = undefined;
+				callback();
+			});
+		},
+		[database, tableName, cachedProps],
+	);
+
+	let snapshot = function () {
+		if (snapshotCacheRef.current == undefined) {
+			snapshotCacheRef.current = database.index(tableName, props, true);
+		}
+
+		return snapshotCacheRef.current;
+	};
+
+	return useSyncExternalStore(subscribe, snapshot);
 }
 
-export function useSelect(database, tableName, props) {
-	// if (typeof props === 'string')
+/**
+ * @param {Database} database
+ * @param {string} tableName
+ * @param {Object} [props]
+ * @returns {number}
+ */
+export function useCount(database, tableName, props = {}) {
+	let index = useIndex(database, tableName, props);
+	let count = index.length;
+	return count;
+}
+
+/**
+ * @param {Database} database
+ * @param {string} tableName
+ * @param {Object} [props]
+ * @returns {Array<Object>}
+ */
+export function useSelect(database, tableName, props = {}) {
+	/** @type {MutableRefObject<Array<Id>>} */
+	let snapshotCacheRef = useRef();
+
+	/** @type {MutableRefObject<[string,any]>} */
+	let propsCacheRef = useRef();
+	if (propsCacheRef.current == undefined) {
+		propsCacheRef.current = [JSON.stringify(props), props];
+	}
+
+	let cachedProps = useMemo(() => {
+		let json = JSON.stringify(props);
+		if (json !== propsCacheRef.current[0]) {
+			propsCacheRef.current = [json, props];
+		}
+
+		return propsCacheRef.current[1];
+	}, [props]);
+
+	let subscribe = useCallback(
+		callback => {
+			return database.subscribeToRows(tableName, cachedProps, () => {
+				snapshotCacheRef.current = undefined;
+				callback();
+			});
+		},
+		[database, tableName, cachedProps],
+	);
+
+	let snapshot = function () {
+		if (snapshotCacheRef.current == undefined) {
+			snapshotCacheRef.current = database.select(tableName, props, true);
+		}
+
+		return snapshotCacheRef.current;
+	};
+
+	return useSyncExternalStore(subscribe, snapshot);
 }

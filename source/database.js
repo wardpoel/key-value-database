@@ -3,6 +3,7 @@ import Index from './database-index.js';
 import JSONStorage from './json-storage.js';
 
 import enumerate from './utilities/string/enumerate.js';
+import Listeners from './database-listeners.js';
 
 /** @typedef {string|number} Id */
 
@@ -15,38 +16,49 @@ export default class Database {
 		let { prefix = '', migrations = [], autoindex = false, entropy = 1000000 } = options ?? {};
 
 		this.prefix = prefix;
-		this.storage = new JSONStorage(storage);
-
-		/** @type {Object<string,Array<function>>} */
-		this.listeners = {};
-
-		let version = this.version ?? 0;
-		let migrate = migrations.slice(version);
-
-		for (let index = 0; index < migrate.length; index++) {
-			let backup = Object.entries(storage);
-			try {
-				migrate[index].call(this, this);
-				this.version = version + index;
-			} catch {
-				for (let index = 0; index < this.storage.length; index++) {
-					let key = storage.key(index);
-					if (key) {
-						let value = backup[key];
-						if (value) {
-							storage.setItem(key, value);
-						} else {
-							storage.removeItem(key);
-						}
-					}
-				}
-			}
-		}
+		this.entropy = entropy;
+		this.autoindex = autoindex;
 
 		/** @type {Object<string,Table>} */
 		this.tables = {};
-		this.entropy = entropy;
-		this.autoindex = autoindex;
+		this.execute = false;
+		this.storage = new JSONStorage(storage);
+		this.rowListeners = new Listeners();
+		this.indexListeners = new Listeners();
+
+		this.storageEventHandler = event => {
+			let { key, oldValue, newValue, storageArea } = event;
+
+			let isSameStorage = this.storage.value === storageArea;
+			if (isSameStorage) {
+				let isSameValue = oldValue === newValue;
+				if (isSameValue === false) {
+					this.rowListeners.notify(key);
+				}
+			}
+		};
+
+		let version = this.version ?? 0;
+		for (let index = 0; index < migrations.length; index++) {
+			if (index === version) this.execute = true;
+
+			let backup = Object.entries(storage);
+			let migration = migrations[index];
+			try {
+				migration.call(this, this);
+				if (this.execute) {
+					this.version = version + index + 1;
+				}
+			} catch (error) {
+				storage.clear();
+				for (let [key, value] of backup) {
+					storage.setItem(key, value);
+				}
+				throw error;
+			}
+		}
+
+		window.addEventListener('storage', this.storageEventHandler);
 	}
 
 	/**
@@ -60,7 +72,7 @@ export default class Database {
 
 	/**
 	 * @param {string} tableName
-	 * @returns {Table}
+	 * @returns {Table|undefined}
 	 */
 	findTable(tableName) {
 		return this.tables[tableName];
@@ -85,9 +97,9 @@ export default class Database {
 			if (process.env.NODE_ENV === 'development') {
 				console.warn(`Table "${tableName}" does not exist`);
 			}
+		} else {
+			table.destroy();
 		}
-
-		table.destroy();
 	}
 
 	/**
@@ -143,21 +155,36 @@ export default class Database {
 	}
 
 	get version() {
-		return this.storage.getItem(`${this.prefix}.version`);
+		return this.storage.getItem(`${this.prefix}#version`);
 	}
 
 	set version(version) {
-		this.storage.setItem(`${this.prefix}.version`, version);
+		this.storage.setItem(`${this.prefix}#version`, version);
+	}
+
+	close() {
+		window.removeEventListener('storage', this.storageEventHandler);
+	}
+
+	// Table functions
+
+	/**
+	 * @param {string} tableName
+	 * @param {Id} id
+	 * @returns {Object|undefined}
+	 */
+	find(tableName, id) {
+		return this.assertTable(tableName).find(id);
 	}
 
 	/**
 	 * @param {string} tableName
-	 * @param {Object} props
-	 * @param {boolean} autoindex
+	 * @param {Object} [props]
+	 * @param {boolean} [autoindex]
 	 * @returns {Array<Id>}
 	 */
-	find(tableName, props, autoindex = this.autoindex) {
-		return this.assertTable(tableName).find(props, autoindex);
+	index(tableName, props, autoindex = this.autoindex) {
+		return this.assertTable(tableName).index(props, autoindex);
 	}
 
 	/**
@@ -208,25 +235,91 @@ export default class Database {
 		return this.assertTable(tableName).delete(row);
 	}
 
-	subscribe(key, callback) {
-		let listeners = this.listeners[key];
-		if (listeners) {
-			listeners.push(callback);
-		} else {
-			this.listeners[key] = [callback];
-		}
+	// Storage functions
 
-		return this.unsubscribe.bind(this, key, callback);
+	/**
+	 * @param {string} key
+	 * @returns {Object|undefined}
+	 */
+	getItem(key) {
+		return this.storage.getItem(key);
 	}
 
-	unsubscribe(key, callback) {
-		let listeners = this.listeners[key];
-		if (listeners?.includes(callback)) {
-			if (listeners.length === 1) {
-				delete this.listeners[key];
-			} else {
-				this.listeners[key] = listeners.filter(listener => listener !== callback);
-			}
+	/**
+	 * @param {string} key
+	 * @param {Object} value
+	 */
+	setItem(key, value) {
+		this.storage.setItem(key, value);
+		this.rowListeners.notify(key);
+	}
+
+	/**
+	 * @param {string} key
+	 */
+	removeItem(key) {
+		this.storage.removeItem(key);
+		this.rowListeners.notify(key);
+	}
+
+	// Subscription functions
+
+	/**
+	 * @param {string} tableName
+	 * @param {Id} id
+	 * @param {() => void} callback
+	 * @returns {() => void}
+	 */
+	subscribeToRow(tableName, id, callback) {
+		let table = this.assertTable(tableName);
+		let rowKey = table.rowKey(id);
+		let unsubscribe = this.rowListeners.add(rowKey, callback);
+		return unsubscribe;
+	}
+
+	/**
+	 * @param {string} tableName
+	 * @param {() => void|Object} arg1
+	 * @param {() => void} [arg2]
+	 * @returns {() => void}
+	 */
+	subscribeToIndex(tableName, arg1, arg2) {
+		let [props, callback] = arg2 == undefined ? [undefined, arg1] : [arg1, arg2];
+
+		let table = this.assertTable(tableName);
+		let indexKey = table.indexKey(props);
+		let unsubscribe = this.rowListeners.add(indexKey, callback);
+		return unsubscribe;
+	}
+
+	/**
+	 * @param {string} tableName
+	 * @param {() => void|Object} arg1
+	 * @param {() => void} [arg2]
+	 * @returns {() => void}
+	 */
+	subscribeToRows(tableName, arg1, arg2) {
+		let [props, callback] = arg2 == undefined ? [undefined, arg1] : [arg1, arg2];
+
+		let table = this.assertTable(tableName);
+		let indexKey = table.indexKey(props);
+
+		let indexIds = this.storage.getItem(indexKey);
+		for (let id of indexIds) {
+			this.rowListeners.add(table.rowKey(id), callback);
 		}
+
+		this.rowListeners.add(indexKey, callback);
+		this.indexListeners.add(indexKey, callback);
+
+		return () => {
+			let indexIds = this.storage.getItem(indexKey);
+			for (let id of indexIds) {
+				this.rowListeners.remove(table.rowKey(id), callback);
+			}
+
+			this.rowListeners.remove(indexKey, callback);
+			this.indexListeners.remove(indexKey, callback);
+		};
 	}
 }

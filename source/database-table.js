@@ -17,11 +17,15 @@ export default class Table {
 		this.name = tableName;
 		this.database = database;
 
-		let tableKey = /** @type {string} */ (this.key());
-		let tableIds = database.storage.getItem(tableKey);
-		if (tableIds) throw new Error(`Table "${this.name}" already exists`);
-
-		database.storage.setItem(tableKey, []);
+		let tableKey = this.key();
+		let tableIds = database.getItem(tableKey);
+		if (tableIds) {
+			if (process.env.NODE_ENV === 'development' && this.database.execute) {
+				console.warn(`Table "${this.name}" already exists`);
+			}
+		} else {
+			database.setItem(tableKey, []);
+		}
 
 		if (entryName) {
 			database[`find${capitalize(tableName)}`] = database.find.bind(database, tableName);
@@ -35,46 +39,58 @@ export default class Table {
 
 		/** @type {Array<Index>} */
 		this.indexes = [];
-		this.index = new Index(database, this, 'id');
+		this.indexById = new Index(database, this, 'id');
 
 		database.tables[tableName] = this;
 	}
 
 	/**
-	 * @param {Id|Object} [props]
+	 * @returns {string}
+	 */
+	key() {
+		return `${this.database.prefix}${this.name}`;
+	}
+
+	/**
+	 * @param {Id} id
+	 * @returns {string}
+	 */
+	rowKey(id) {
+		return this.indexById.key(id);
+	}
+
+	/**
+	 * @param {Object} props
+	 * @param {boolean} autoindex
 	 * @returns {string|undefined}
 	 */
-	key(props, autoindex = this.database.autoindex) {
-		if (props == undefined) {
-			return `${this.database.prefix}${this.name}`;
-		} else if (typeof props === 'string' || typeof props === 'number') {
-			return this.index.key(props);
+	indexKey(props, autoindex = this.database.autoindex) {
+		if (props == undefined) return this.key();
+
+		let keys = Object.keys(props);
+		if (keys.length === 0) return this.key();
+
+		let index = this.database.findIndex(this.name, ...keys);
+		if (index) {
+			return index.key(props);
 		} else {
-			let keys = Object.keys(props);
-			if (keys.length === 0) return this.key();
-
-			let index = this.database.findIndex(this.name, ...keys);
-			if (index) {
-				return index.key(props);
-			} else {
-				if (process.env.NODE_ENV === 'development') {
-					let autoindexWarning;
-					if (autoindex) {
-						autoindexWarning = `An index will be created at runtime to improve lookup`;
-					} else {
-						autoindexWarning = `Please create an index for these properties`;
-					}
-
-					console.warn(
-						`Finding "${this.name}" by ${enumerate(...keys)} can be slow without an index. ${autoindexWarning}`,
-					);
-				}
-
+			if (process.env.NODE_ENV === 'development') {
+				let autoindexWarning;
 				if (autoindex) {
-					let index = this.database.addIndex(this.name, ...keys);
-					let indexKey = index.key(props);
-					return indexKey;
+					autoindexWarning = `An index will be created at runtime to improve lookup.`;
+				} else {
+					autoindexWarning = `Please create an index for these properties.`;
 				}
+
+				console.warn(
+					`Finding "${this.name}" by ${enumerate(...keys)} can be slow without an index. ${autoindexWarning}`,
+				);
+			}
+
+			if (autoindex) {
+				let index = this.database.addIndex(this.name, ...keys);
+				let indexKey = index.key(props);
+				return indexKey;
 			}
 		}
 	}
@@ -84,8 +100,8 @@ export default class Table {
 	 * @returns {Id}
 	 */
 	id(entropy = this.database.entropy) {
-		let key = /** @type {string} */ (this.key());
-		let ids = this.database.storage.getItem(key) ?? [];
+		let key = this.key();
+		let ids = this.database.getItem(key) ?? [];
 		let size = Math.ceil(Math.log2(entropy * Math.max(ids.length, 1)) / Math.log2(alphabet.length));
 
 		let id;
@@ -97,14 +113,25 @@ export default class Table {
 	}
 
 	/**
+	 * @param {Id} id
+	 * @returns {Object|undefined}
+	 */
+	find(id) {
+		let key = this.rowKey(id);
+		let row = this.database.getItem(key);
+
+		return row;
+	}
+
+	/**
 	 * @param {Object} [props]
 	 * @param {boolean} autoindex
 	 * @returns {Array<Id>}
 	 */
-	find(props, autoindex = this.database.autoindex) {
-		let key = this.key(props, autoindex);
+	index(props, autoindex = this.database.autoindex) {
+		let key = this.indexKey(props, autoindex);
 		if (key) {
-			return this.database.storage.getItem(key);
+			return this.database.getItem(key) ?? [];
 		} else {
 			let rows = this.select();
 			let keys = Object.keys(props);
@@ -120,7 +147,7 @@ export default class Table {
 	 * @returns {number}
 	 */
 	count(props, autoindex = this.database.autoindex) {
-		return this.find(props, autoindex)?.length ?? 0;
+		return this.index(props, autoindex).length;
 	}
 
 	/**
@@ -129,13 +156,16 @@ export default class Table {
 	 * @returns {Array<Object>|Object|undefined}
 	 */
 	select(props, autoindex = this.database.autoindex) {
-		let key = this.key(props, autoindex);
+		let key = this.indexKey(props, autoindex);
 		if (key) {
-			let value = this.database.storage.getItem(key);
-			if (value instanceof Array) {
-				value = value.map(id => this.database.storage.getItem(this.index.key(id)));
-			}
-			return value;
+			let ids = this.database.getItem(key);
+			let rows = ids.map(this.find.bind(this));
+			return rows;
+		} else {
+			let rows = this.select();
+			let keys = Object.keys(props);
+			let filter = rows.filter(item => keys.every(key => item[key] === props[key]));
+			return filter;
 		}
 	}
 
@@ -147,10 +177,10 @@ export default class Table {
 		let { id, ...other } = props;
 
 		let rowId = id ?? this.id();
-		let rowKey = this.index.key(rowId);
+		let rowKey = this.indexById.key(rowId);
 
 		if (id != undefined) {
-			let row = this.database.storage.getItem(rowKey);
+			let row = this.database.getItem(rowKey);
 			if (row) {
 				throw new Error(`Id "${id}" already exists in table "${this.name}"`);
 			}
@@ -158,14 +188,21 @@ export default class Table {
 
 		let row = { id: rowId, ...other };
 
-		let tableKey = /** @type {string} */ (this.key());
-		let tableIds = this.database.storage.getItem(tableKey);
+		let tableKey = this.key();
+		let tableIds = this.database.getItem(tableKey);
 		if (tableIds == undefined) {
 			throw new Error(`Table "${this.name}" does not exists yet`);
 		}
 
-		this.database.storage.setItem(rowKey, row);
-		this.database.storage.setItem(tableKey, [...tableIds, row.id]);
+		this.database.setItem(rowKey, row);
+		this.database.setItem(tableKey, [...tableIds, row.id]);
+
+		let indexListeners = this.database.indexListeners.get(tableKey);
+		if (indexListeners) {
+			for (let listener of indexListeners) {
+				this.database.rowListeners.add(rowKey, listener);
+			}
+		}
 
 		for (let index of this.indexes) {
 			index.add(row);
@@ -182,8 +219,8 @@ export default class Table {
 	update(row, props = {}) {
 		let rowId = typeof row === 'object' ? row.id : row;
 
-		let key = this.index.key(rowId);
-		let oldRow = this.database.storage.getItem(key);
+		let key = this.indexById.key(rowId);
+		let oldRow = this.database.getItem(key);
 		let newRow = { ...row, ...props };
 
 		for (let index of this.indexes) {
@@ -191,7 +228,7 @@ export default class Table {
 			index.add(newRow);
 		}
 
-		this.database.storage.setItem(key, newRow);
+		this.database.setItem(key, newRow);
 
 		return newRow;
 	}
@@ -203,33 +240,33 @@ export default class Table {
 	delete(row) {
 		let rowId = typeof row === 'object' ? row.id : row;
 
-		let tableKey = /** @type {string} */ (this.key());
-		let tableIds = this.database.storage.getItem(tableKey);
+		let tableKey = this.key();
+		let tableIds = this.database.getItem(tableKey);
 		let rowIndex = tableIds.indexOf(rowId);
 		if (rowIndex !== -1) {
-			this.database.storage.setItem(tableKey, [...tableIds.slice(0, rowIndex), ...tableIds.slice(rowIndex + 1)]);
+			this.database.setItem(tableKey, [...tableIds.slice(0, rowIndex), ...tableIds.slice(rowIndex + 1)]);
 
-			let rowKey = this.index.key(rowId);
-			let row = this.database.storage.getItem(rowKey);
+			let rowKey = this.indexById.key(rowId);
+			let row = this.database.getItem(rowKey);
 			if (row) {
 				for (let index of this.indexes) {
 					index.remove(row);
 				}
 			}
 
-			this.database.storage.removeItem(rowKey);
+			this.database.removeItem(rowKey);
 
 			return row;
 		}
 	}
 
 	destroy() {
-		let tableKey = /** @type {string} */ (this.key());
+		let tableKey = this.key();
 		let storageKeys = Object.keys(this.database.storage.value);
 
 		for (let storageKey of storageKeys) {
 			if (storageKey.startsWith(tableKey)) {
-				this.database.storage.removeItem(storageKey);
+				this.database.removeItem(storageKey);
 			}
 		}
 

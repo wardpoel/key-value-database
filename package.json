@@ -5,11 +5,11 @@
 	"main": "build/index.js",
 	"type": "module",
 	"scripts": {
-		"test:unit": "node source/test.js",
-		"test:integration": "vite --force --host",
 		"build": "esbuild source/index.js --outfile=build/index.js --bundle --format=esm --minify",
 		"develop": "esbuild source/index.js --outfile=build/index.js --bundle --format=esm --sourcemap --watch",
-		"prepare": "npm run build"
+		"prepare": "npm run build",
+		"test:unit": "node test/unit/index.js",
+		"test:integration": "vite --force --host"
 	},
 	"keywords": [],
 	"author": "SubHero",

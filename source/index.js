@@ -1,12 +1,2 @@
 export { default } from './database.js';
-
-/**
- *
- * @param {string} param
- * @returns
- */
-function test(param) {
-	return param;
-}
-
-test(4);
+export { useFind, useCount, useIndex, useSelect } from './hooks.js';

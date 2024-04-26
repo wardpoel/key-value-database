@@ -1,9 +1,10 @@
 import Database from '../../source/index.js';
 
-let database = new Database(localStorage);
+let migration = function (database) {
+	database.addTable('cars');
+};
 
-database.addTable('cars');
-database.create('cars', { brand: 'Kia', color: 'blue' });
+let database = new Database(localStorage, { migrations: [migration] });
 
 window['Database'] = Database;
 
