@@ -8,8 +8,8 @@
 		"build": "esbuild source/index.js --outfile=build/index.js --bundle --format=esm --minify",
 		"develop": "esbuild source/index.js --outfile=build/index.js --bundle --format=esm --sourcemap --watch",
 		"prepare": "npm run build",
-		"test:unit": "node test/unit/index.js",
-		"test:integration": "vite --force --host"
+		"test:unit": "node --test test/unit/index.js",
+		"test:manual": "vite --force --host"
 	},
 	"keywords": [],
 	"author": "SubHero",
@@ -27,6 +27,7 @@
 		"eslint-plugin-react-hooks": "^4.6.0",
 		"node-localstorage": "^3.0.5",
 		"prettier": "^3.2.5",
+		"puppeteer": "^22.7.1",
 		"react-dom": "^18.2.0",
 		"vite": "^5.2.10"
 	}

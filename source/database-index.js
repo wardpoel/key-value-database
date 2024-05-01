@@ -19,24 +19,19 @@ export default class Index {
 		this.values = values;
 		this.database = database;
 
-		let tableRegistered = database.tables[table.name];
-		if (tableRegistered) {
-			let key = table.key();
-			let ids = database.getItem(key);
-			if (ids == undefined) throw new Error(`Can not create index on non-existing table "${table.name}"`);
+		let index = database.findIndex(table.name, ...keys);
+		if (index) throw new Error(`Index on ${enumerate(...keys)} already exists on table "${table.name}"`);
 
-			let index = database.findIndex(table.name, ...keys);
-			if (index) throw new Error(`Index on ${enumerate(...keys)} already exists on table "${table.name}"`);
+		let key = table.key();
+		let ids = database.getItem(key) ?? [];
+		for (let id of ids) {
+			let key = table.rowKey(id);
+			let row = database.getItem(key);
 
-			for (let id of ids) {
-				let key = table.indexById.key(id);
-				let row = database.getItem(key);
-
-				this.add(row);
-			}
-
-			table.indexes.push(this);
+			this.add(row);
 		}
+
+		table.indexes.push(this);
 	}
 
 	/**
@@ -44,7 +39,7 @@ export default class Index {
 	 * @param  {Array<string>} other
 	 * @returns {string}
 	 */
-	key(props, ...other) {
+	rowKey(props, ...other) {
 		let values;
 		if (typeof props === 'object') {
 			values = this.values.map(value => (typeof value === 'function' ? value(props) : props[value]));
@@ -62,7 +57,7 @@ export default class Index {
 	 * @param {Object} row
 	 */
 	add(row) {
-		let key = this.key(row);
+		let key = this.rowKey(row);
 		let ids = this.database.getItem(key) ?? [];
 		let index = ids.indexOf(row.id);
 		if (index === -1) {
@@ -74,16 +69,14 @@ export default class Index {
 	 * @param {Object} row
 	 */
 	remove(row) {
-		let key = this.key(row);
-		let ids = this.database.getItem(key);
-		if (ids) {
-			let index = ids.indexOf(row.id);
-			if (index !== -1) {
-				if (ids.length === 1) {
-					this.database.removeItem(key);
-				} else {
-					this.database.setItem(key, [...ids.slice(0, index), ...ids.slice(index + 1)]);
-				}
+		let key = this.rowKey(row);
+		let ids = this.database.getItem(key) ?? [];
+		let index = ids.indexOf(row.id);
+		if (index !== -1) {
+			if (ids.length === 1) {
+				this.database.removeItem(key);
+			} else {
+				this.database.setItem(key, [...ids.slice(0, index), ...ids.slice(index + 1)]);
 			}
 		}
 	}
@@ -94,7 +87,7 @@ export default class Index {
 	 * @returns {Array<Id>}
 	 */
 	find(props, ...other) {
-		let key = this.key(props, ...other);
+		let key = this.rowKey(props, ...other);
 		let ids = this.database.getItem(key) ?? [];
 		return ids;
 	}
@@ -102,7 +95,7 @@ export default class Index {
 	destroy() {
 		let rows = this.table.select();
 		for (let row of rows) {
-			this.database.removeItem(this.key(row));
+			this.database.removeItem(this.rowKey(row));
 		}
 	}
 }

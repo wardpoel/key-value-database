@@ -18,47 +18,34 @@ export default class Database {
 		this.prefix = prefix;
 		this.entropy = entropy;
 		this.autoindex = autoindex;
+		this.migrations = migrations;
 
-		/** @type {Object<string,Table>} */
-		this.tables = {};
-		this.execute = false;
 		this.storage = new JSONStorage(storage);
 		this.rowListeners = new Listeners();
 		this.indexListeners = new Listeners();
+
+		this.reset();
 
 		this.storageEventHandler = event => {
 			let { key, oldValue, newValue, storageArea } = event;
 
 			let isSameStorage = this.storage.value === storageArea;
-			if (isSameStorage) {
-				let isSameValue = oldValue === newValue;
-				if (isSameValue === false) {
-					this.rowListeners.notify(key);
-				}
+			if (isSameStorage === false) return;
+
+			let storageCleared = key === null;
+			if (storageCleared) {
+				this.rowListeners.notify();
+				this.indexListeners.notify();
+				this.reset();
+			} else {
+				this.rowListeners.notify(key);
+				this.indexListeners.notify(key);
 			}
 		};
 
-		let version = this.version ?? 0;
-		for (let index = 0; index < migrations.length; index++) {
-			if (index === version) this.execute = true;
-
-			let backup = Object.entries(storage);
-			let migration = migrations[index];
-			try {
-				migration.call(this, this);
-				if (this.execute) {
-					this.version = version + index + 1;
-				}
-			} catch (error) {
-				storage.clear();
-				for (let [key, value] of backup) {
-					storage.setItem(key, value);
-				}
-				throw error;
-			}
+		if (typeof window !== 'undefined') {
+			window.addEventListener('storage', this.storageEventHandler);
 		}
-
-		window.addEventListener('storage', this.storageEventHandler);
 	}
 
 	/**
@@ -162,8 +149,39 @@ export default class Database {
 		this.storage.setItem(`${this.prefix}#version`, version);
 	}
 
+	reset() {
+		/** @type {Object<string,Table>} */
+		this.tables = {};
+		this.migrate();
+	}
+
+	migrate() {
+		this.execute = false;
+
+		let version = this.version ?? 0;
+		for (let index = 0; index < this.migrations.length; index++) {
+			if (index === version) this.execute = true;
+
+			let backup = Object.entries(this.storage);
+			let migration = this.migrations[index];
+			try {
+				migration.call(this, this);
+
+				this.version = Math.max(version, index + 1);
+			} catch (error) {
+				this.storage.clear();
+				for (let [key, value] of backup) {
+					this.storage.setItem(key, value);
+				}
+				throw error;
+			}
+		}
+
+		this.execute = true;
+	}
+
 	close() {
-		window.removeEventListener('storage', this.storageEventHandler);
+		window?.removeEventListener('storage', this.storageEventHandler);
 	}
 
 	// Table functions
@@ -250,6 +268,8 @@ export default class Database {
 	 * @param {Object} value
 	 */
 	setItem(key, value) {
+		if (this.execute === false) return;
+
 		this.storage.setItem(key, value);
 		this.rowListeners.notify(key);
 	}
@@ -258,6 +278,8 @@ export default class Database {
 	 * @param {string} key
 	 */
 	removeItem(key) {
+		if (this.execute === false) return;
+
 		this.storage.removeItem(key);
 		this.rowListeners.notify(key);
 	}
@@ -303,8 +325,7 @@ export default class Database {
 
 		let table = this.assertTable(tableName);
 		let indexKey = table.indexKey(props);
-
-		let indexIds = this.storage.getItem(indexKey);
+		let indexIds = this.storage.getItem(indexKey) ?? [];
 		for (let id of indexIds) {
 			this.rowListeners.add(table.rowKey(id), callback);
 		}
@@ -313,7 +334,7 @@ export default class Database {
 		this.indexListeners.add(indexKey, callback);
 
 		return () => {
-			let indexIds = this.storage.getItem(indexKey);
+			let indexIds = this.storage.getItem(indexKey) ?? [];
 			for (let id of indexIds) {
 				this.rowListeners.remove(table.rowKey(id), callback);
 			}

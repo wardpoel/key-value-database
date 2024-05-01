@@ -28,7 +28,7 @@ Test('version with a single migrations', () => {
 	let database = new Database(localStorage, { migrations });
 	let version = database.version;
 
-	assert.deepStrictEqual(version, 0);
+	assert.deepStrictEqual(version, 1);
 });
 
 Test('create table', () => {
@@ -87,19 +87,6 @@ Test('create row without table', () => {
 	assert.throws(
 		() => {
 			let car1 = database.create('cars', { color: 'red' });
-		},
-		{ message: /exist/ },
-	);
-});
-
-Test('create duplicate tables', () => {
-	let database = new Database(localStorage);
-
-	let table = database.addTable('cars');
-
-	assert.throws(
-		() => {
-			let table = database.addTable('cars');
 		},
 		{ message: /exist/ },
 	);

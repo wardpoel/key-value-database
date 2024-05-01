@@ -47,14 +47,31 @@ export default class Listeners {
 	}
 
 	/**
-	 * @param {string} key
+	 * @param {string} [key]
 	 */
 	notify(key) {
-		let listeners = this.listeners[key];
-		if (listeners) {
-			for (let listener of listeners) {
-				listener();
+		if (key) {
+			let listeners = this.listeners[key];
+			if (listeners) {
+				for (let listener of listeners) {
+					listener();
+				}
 			}
+		} else {
+			for (let key in this.listeners) {
+				let listeners = this.listeners[key];
+				if (listeners) {
+					for (let listener of listeners) {
+						listener();
+					}
+				}
+			}
+		}
+	}
+
+	clear() {
+		for (let key in this.listeners) {
+			delete this.listeners[key];
 		}
 	}
 }

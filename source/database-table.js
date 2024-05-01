@@ -6,6 +6,7 @@ import generateId, { alphabet } from './utilities/string/id.js';
 
 /** @typedef {import('./database.js').Id} Id */
 /** @typedef {import('./database.js').default} Database */
+/** @typedef {import('./database-index.js').default} Index */
 
 export default class Table {
 	/**
@@ -15,17 +16,9 @@ export default class Table {
 	 */
 	constructor(database, tableName, entryName) {
 		this.name = tableName;
+		/** @type {Array<Index>} */
+		this.indexes = [];
 		this.database = database;
-
-		let tableKey = this.key();
-		let tableIds = database.getItem(tableKey);
-		if (tableIds) {
-			if (process.env.NODE_ENV === 'development' && this.database.execute) {
-				console.warn(`Table "${this.name}" already exists`);
-			}
-		} else {
-			database.setItem(tableKey, []);
-		}
 
 		if (entryName) {
 			database[`find${capitalize(tableName)}`] = database.find.bind(database, tableName);
@@ -36,10 +29,6 @@ export default class Table {
 			database[`update${capitalize(entryName)}`] = database.update.bind(database, tableName);
 			database[`delete${capitalize(entryName)}`] = database.delete.bind(database, tableName);
 		}
-
-		/** @type {Array<Index>} */
-		this.indexes = [];
-		this.indexById = new Index(database, this, 'id');
 
 		database.tables[tableName] = this;
 	}
@@ -56,7 +45,7 @@ export default class Table {
 	 * @returns {string}
 	 */
 	rowKey(id) {
-		return this.indexById.key(id);
+		return `${this.key()}[id=${id}]`;
 	}
 
 	/**
@@ -72,7 +61,7 @@ export default class Table {
 
 		let index = this.database.findIndex(this.name, ...keys);
 		if (index) {
-			return index.key(props);
+			return index.rowKey(props);
 		} else {
 			if (process.env.NODE_ENV === 'development') {
 				let autoindexWarning;
@@ -89,7 +78,7 @@ export default class Table {
 
 			if (autoindex) {
 				let index = this.database.addIndex(this.name, ...keys);
-				let indexKey = index.key(props);
+				let indexKey = index.rowKey(props);
 				return indexKey;
 			}
 		}
@@ -158,7 +147,7 @@ export default class Table {
 	select(props, autoindex = this.database.autoindex) {
 		let key = this.indexKey(props, autoindex);
 		if (key) {
-			let ids = this.database.getItem(key);
+			let ids = this.database.getItem(key) ?? [];
 			let rows = ids.map(this.find.bind(this));
 			return rows;
 		} else {
@@ -177,7 +166,7 @@ export default class Table {
 		let { id, ...other } = props;
 
 		let rowId = id ?? this.id();
-		let rowKey = this.indexById.key(rowId);
+		let rowKey = this.rowKey(rowId);
 
 		if (id != undefined) {
 			let row = this.database.getItem(rowKey);
@@ -189,13 +178,11 @@ export default class Table {
 		let row = { id: rowId, ...other };
 
 		let tableKey = this.key();
-		let tableIds = this.database.getItem(tableKey);
-		if (tableIds == undefined) {
-			throw new Error(`Table "${this.name}" does not exists yet`);
-		}
+		let tableIds = this.database.getItem(tableKey) ?? [];
+		let filteredIds = tableIds.filter(id => id !== row.id);
 
 		this.database.setItem(rowKey, row);
-		this.database.setItem(tableKey, [...tableIds, row.id]);
+		this.database.setItem(tableKey, [...filteredIds, row.id]);
 
 		let indexListeners = this.database.indexListeners.get(tableKey);
 		if (indexListeners) {
@@ -218,19 +205,22 @@ export default class Table {
 	 */
 	update(row, props = {}) {
 		let rowId = typeof row === 'object' ? row.id : row;
-
-		let key = this.indexById.key(rowId);
-		let oldRow = this.database.getItem(key);
-		let newRow = { ...row, ...props };
-
-		for (let index of this.indexes) {
-			index.remove(oldRow);
-			index.add(newRow);
+		let rowKey = this.rowKey(rowId);
+		let rowOld = this.database.getItem(rowKey);
+		if (rowOld == undefined) {
+			throw new Error(`Can not update row with id "${rowId}" as it does not exist`);
 		}
 
-		this.database.setItem(key, newRow);
+		let rowNew = { ...rowOld, ...props };
 
-		return newRow;
+		for (let index of this.indexes) {
+			index.remove(rowOld);
+			index.add(rowNew);
+		}
+
+		this.database.setItem(rowKey, rowNew);
+
+		return rowNew;
 	}
 
 	/**
@@ -239,25 +229,25 @@ export default class Table {
 	 */
 	delete(row) {
 		let rowId = typeof row === 'object' ? row.id : row;
+		let rowKey = this.rowKey(rowId);
+		let rowValue = typeof row === 'object' ? row : this.database.getItem(rowKey);
+		if (rowValue) {
+			for (let index of this.indexes) {
+				index.remove(rowValue);
+			}
+
+			rowValue = this.database.getItem(rowKey);
+			this.database.removeItem(rowKey);
+		}
 
 		let tableKey = this.key();
-		let tableIds = this.database.getItem(tableKey);
+		let tableIds = this.database.getItem(tableKey) ?? [];
 		let rowIndex = tableIds.indexOf(rowId);
 		if (rowIndex !== -1) {
 			this.database.setItem(tableKey, [...tableIds.slice(0, rowIndex), ...tableIds.slice(rowIndex + 1)]);
-
-			let rowKey = this.indexById.key(rowId);
-			let row = this.database.getItem(rowKey);
-			if (row) {
-				for (let index of this.indexes) {
-					index.remove(row);
-				}
-			}
-
-			this.database.removeItem(rowKey);
-
-			return row;
 		}
+
+		return rowValue;
 	}
 
 	destroy() {
