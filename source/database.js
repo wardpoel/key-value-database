@@ -15,6 +15,9 @@ export default class Database {
 	constructor(storage, options) {
 		let { prefix = '', migrations = [], autoindex = false, entropy = 1000000 } = options ?? {};
 
+		/** @type {Object<string,Table>} */
+		this.tables = {};
+
 		this.prefix = prefix;
 		this.entropy = entropy;
 		this.autoindex = autoindex;
@@ -24,22 +27,42 @@ export default class Database {
 		this.rowListeners = new Listeners();
 		this.indexListeners = new Listeners();
 
-		this.reset();
+		// Migrate
+
+		this.execute = false;
+
+		let version = this.version ?? 0;
+		for (let index = 0; index < this.migrations.length; index++) {
+			if (index === version) this.execute = true;
+
+			let backup = Object.entries(this.storage);
+			let migration = this.migrations[index];
+			try {
+				migration.call(this, this);
+
+				this.version = Math.max(version, index + 1);
+			} catch (error) {
+				this.storage.clear();
+				for (let [key, value] of backup) {
+					this.storage.setItem(key, value);
+				}
+				throw error;
+			}
+		}
+
+		this.execute = true;
 
 		this.storageEventHandler = event => {
-			let { key, oldValue, newValue, storageArea } = event;
-
-			let isSameStorage = this.storage.value === storageArea;
+			let isSameStorage = this.storage.value === event.storageArea;
 			if (isSameStorage === false) return;
 
-			let storageCleared = key === null;
+			let storageCleared = event.key === null;
 			if (storageCleared) {
 				this.rowListeners.notify();
 				this.indexListeners.notify();
-				this.reset();
 			} else {
-				this.rowListeners.notify(key);
-				this.indexListeners.notify(key);
+				this.rowListeners.notify(event.key);
+				this.indexListeners.notify(event.key);
 			}
 		};
 
@@ -147,37 +170,6 @@ export default class Database {
 
 	set version(version) {
 		this.storage.setItem(`${this.prefix}#version`, version);
-	}
-
-	reset() {
-		/** @type {Object<string,Table>} */
-		this.tables = {};
-		this.migrate();
-	}
-
-	migrate() {
-		this.execute = false;
-
-		let version = this.version ?? 0;
-		for (let index = 0; index < this.migrations.length; index++) {
-			if (index === version) this.execute = true;
-
-			let backup = Object.entries(this.storage);
-			let migration = this.migrations[index];
-			try {
-				migration.call(this, this);
-
-				this.version = Math.max(version, index + 1);
-			} catch (error) {
-				this.storage.clear();
-				for (let [key, value] of backup) {
-					this.storage.setItem(key, value);
-				}
-				throw error;
-			}
-		}
-
-		this.execute = true;
 	}
 
 	close() {
