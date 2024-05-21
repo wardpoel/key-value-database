@@ -10,7 +10,7 @@ import enumerate from './utilities/string/enumerate.js';
 export default class Database {
 	/**
 	 * @param {Storage} storage
-	 * @param {{ prefix?: string, migrations?: Array<function>, autoindex?: boolean, entropy?: number }} [options]
+	 * @param {{ prefix?: string, migrations?: Array<function(database:Database):void>, autoindex?: boolean, entropy?: number }} [options]
 	 */
 	constructor(storage, options) {
 		let { prefix = '', migrations = [], autoindex = false, entropy = 1000000 } = options ?? {};
