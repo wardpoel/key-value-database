@@ -2,14 +2,15 @@
 	"name": "key-value-database",
 	"version": "0.0.1",
 	"description": "A database for key value stores",
-	"main": "build/index.js",
 	"type": "module",
+	"main": "build/index.js",
+	"types": "build/types/index.d.ts",
 	"scripts": {
 		"build": "esbuild source/index.js --outfile=build/index.js --bundle --format=esm --external:react --minify",
 		"develop": "esbuild source/index.js --outfile=build/index.js --bundle --format=esm --external:react --sourcemap --watch",
-		"prepare": "npm run build",
 		"test:unit": "node --test test/unit/index.js",
-		"test:manual": "vite --force --host"
+		"test:manual": "vite --force --host",
+		"prepare": "npm run build && npx tsc"
 	},
 	"keywords": [],
 	"author": "SubHero",
@@ -18,7 +19,7 @@
 		"nanoid": "^5.0.7"
 	},
 	"peerDependencies": {
-		"react": "^18.2.0"
+		"react": "^18.3.1"
 	},
 	"devDependencies": {
 		"esbuild": "^0.20.2",
@@ -29,6 +30,7 @@
 		"prettier": "^3.2.5",
 		"puppeteer": "^22.7.1",
 		"react-dom": "^18.2.0",
+		"typescript": "^5.4.5",
 		"vite": "^5.2.10"
 	}
 }

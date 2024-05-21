@@ -1,9 +1,9 @@
 import Table from './database-table.js';
 import Index from './database-index.js';
-import JSONStorage from './json-storage.js';
+import Listeners from './database-listeners.js';
+import JSONStorage from './storage/json.js';
 
 import enumerate from './utilities/string/enumerate.js';
-import Listeners from './database-listeners.js';
 
 /** @typedef {string|number} Id */
 
@@ -23,34 +23,12 @@ export default class Database {
 		this.autoindex = autoindex;
 		this.migrations = migrations;
 
+		this.execute = true;
 		this.storage = new JSONStorage(storage);
 		this.rowListeners = new Listeners();
 		this.indexListeners = new Listeners();
 
-		// Migrate
-
-		this.execute = false;
-
-		let version = this.version ?? 0;
-		for (let index = 0; index < this.migrations.length; index++) {
-			if (index === version) this.execute = true;
-
-			let backup = Object.entries(this.storage);
-			let migration = this.migrations[index];
-			try {
-				migration.call(this, this);
-
-				this.version = Math.max(version, index + 1);
-			} catch (error) {
-				this.storage.clear();
-				for (let [key, value] of backup) {
-					this.storage.setItem(key, value);
-				}
-				throw error;
-			}
-		}
-
-		this.execute = true;
+		this.migrate();
 
 		this.storageEventHandler = event => {
 			let isSameStorage = this.storage.value === event.storageArea;
@@ -58,6 +36,8 @@ export default class Database {
 
 			let storageCleared = event.key === null;
 			if (storageCleared) {
+				this.migrate();
+
 				this.rowListeners.notify();
 				this.indexListeners.notify();
 			} else {
@@ -172,6 +152,31 @@ export default class Database {
 		this.storage.setItem(`${this.prefix}#version`, version);
 	}
 
+	migrate() {
+		this.execute = false;
+
+		let version = this.version ?? 0;
+		for (let index = 0; index < this.migrations.length; index++) {
+			if (index === version) this.execute = true;
+
+			let backup = Object.entries(this.storage);
+			let migration = this.migrations[index];
+			try {
+				migration.call(this, this);
+
+				this.version = Math.max(version, index + 1);
+			} catch (error) {
+				this.storage.clear();
+				for (let [key, value] of backup) {
+					this.storage.setItem(key, value);
+				}
+				throw error;
+			}
+		}
+
+		this.execute = true;
+	}
+
 	close() {
 		window?.removeEventListener('storage', this.storageEventHandler);
 	}
@@ -223,17 +228,33 @@ export default class Database {
 	 * @returns {Object}
 	 */
 	create(tableName, props) {
+		if (this.execute === false) return;
+
 		return this.assertTable(tableName).create(props);
 	}
 
 	/**
 	 * @param {string} tableName
-	 * @param {Object} row
+	 * @param {Object|Id} row
 	 * @param {Object} [props]
 	 * @returns {Object}
 	 */
 	update(tableName, row, props = {}) {
+		if (this.execute === false) return;
+
 		return this.assertTable(tableName).update(row, props);
+	}
+
+	/**
+	 * @param {string} tableName
+	 * @param {Object|Id} row
+	 * @param {Object} [props]
+	 * @returns {Object}
+	 */
+	replace(tableName, row, props = {}) {
+		if (this.execute === false) return;
+
+		return this.assertTable(tableName).replace(row, props);
 	}
 
 	/**
@@ -242,7 +263,16 @@ export default class Database {
 	 * @returns {Object}
 	 */
 	delete(tableName, row) {
+		if (this.execute === false) return;
+
 		return this.assertTable(tableName).delete(row);
+	}
+
+	/**
+	 * @param {string} tableName
+	 */
+	clear(tableName) {
+		return this.assertTable(tableName).clear();
 	}
 
 	// Storage functions
@@ -260,8 +290,6 @@ export default class Database {
 	 * @param {Object} value
 	 */
 	setItem(key, value) {
-		if (this.execute === false) return;
-
 		this.storage.setItem(key, value);
 		this.rowListeners.notify(key);
 	}
@@ -270,8 +298,6 @@ export default class Database {
 	 * @param {string} key
 	 */
 	removeItem(key) {
-		if (this.execute === false) return;
-
 		this.storage.removeItem(key);
 		this.rowListeners.notify(key);
 	}

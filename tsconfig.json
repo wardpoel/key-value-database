@@ -1,0 +1,12 @@
+{
+	"include": ["source/**/*"],
+	"compilerOptions": {
+		"allowJs": true,
+		"module": "ESNext",
+		"declaration": true,
+		"emitDeclarationOnly": true,
+		"declarationDir": "build/types",
+		"declarationMap": true,
+		"moduleResolution": "Bundler"
+	}
+}

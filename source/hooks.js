@@ -4,11 +4,6 @@ import { useRef, useMemo, useSyncExternalStore, useCallback } from 'react';
 /** @typedef {import('./database.js').default} Database */
 
 /**
- * @template T
- * @typedef {import('react').MutableRefObject<T>} MutableRefObject<T>
- */
-
-/**
  * @param {Database} database
  * @param {string} tableName
  * @param {Id} id
@@ -47,10 +42,10 @@ export function useFind(database, tableName, id) {
  * @returns {Array<Id>}
  */
 export function useIndex(database, tableName, props = {}) {
-	/** @type {MutableRefObject<Array<Id>>} */
+	/** @type {React.MutableRefObject<Array<Id>>} */
 	let snapshotCacheRef = useRef();
 
-	/** @type {MutableRefObject<[string,any]>} */
+	/** @type {React.MutableRefObject<[string,any]>} */
 	let propsCacheRef = useRef();
 	if (propsCacheRef.current == undefined) {
 		propsCacheRef.current = [JSON.stringify(props), props];

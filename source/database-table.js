@@ -199,7 +199,7 @@ export default class Table {
 	}
 
 	/**
-	 * @param {Object} row
+	 * @param {Id|Object} row
 	 * @param {Object} [props]
 	 * @returns {Object}
 	 */
@@ -212,6 +212,31 @@ export default class Table {
 		}
 
 		let rowNew = { ...rowOld, ...props };
+
+		for (let index of this.indexes) {
+			index.remove(rowOld);
+			index.add(rowNew);
+		}
+
+		this.database.setItem(rowKey, rowNew);
+
+		return rowNew;
+	}
+
+	/**
+	 * @param {Id|Object} row
+	 * @param {Object} [props]
+	 * @returns {Object}
+	 */
+	replace(row, props = {}) {
+		let rowId = typeof row === 'object' ? row.id : row;
+		let rowKey = this.rowKey(rowId);
+		let rowOld = this.database.getItem(rowKey);
+		if (rowOld == undefined) {
+			throw new Error(`Can not replace row with id "${rowId}" as it does not exist`);
+		}
+
+		let rowNew = { id: rowId, ...props };
 
 		for (let index of this.indexes) {
 			index.remove(rowOld);
@@ -250,7 +275,7 @@ export default class Table {
 		return rowValue;
 	}
 
-	destroy() {
+	clear() {
 		let tableKey = this.key();
 		let storageKeys = Object.keys(this.database.storage.value);
 
@@ -259,6 +284,10 @@ export default class Table {
 				this.database.removeItem(storageKey);
 			}
 		}
+	}
+
+	destroy() {
+		this.clear();
 
 		delete this.database.tables[this.name];
 	}

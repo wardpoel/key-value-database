@@ -228,12 +228,13 @@ Test('update', () => {
 	let database = new Database(localStorage);
 
 	database.addTable('cars');
-	let oldCar = database.create('cars', { color: 'red' });
+	let oldCar = database.create('cars', { brand: 'Tesla', color: 'red' });
 	let newCar = database.update('cars', oldCar, { color: 'blue' });
 
 	let cars = database.select('cars');
 
 	assert.deepStrictEqual(cars.length, 1);
+	assert.deepStrictEqual(cars[0].brand, 'Tesla');
 	assert.deepStrictEqual(cars[0].color, 'blue');
 });
 
@@ -241,12 +242,41 @@ Test('update by id', () => {
 	let database = new Database(localStorage);
 
 	database.addTable('cars');
-	let oldCar = database.create('cars', { id: 123, color: 'red' });
+	let oldCar = database.create('cars', { id: 123, brand: 'Tesla', color: 'red' });
 	let newCar = database.update('cars', 123, { color: 'blue' });
 
 	let cars = database.select('cars');
 
 	assert.deepStrictEqual(cars.length, 1);
+	assert.deepStrictEqual(cars[0].brand, 'Tesla');
+	assert.deepStrictEqual(cars[0].color, 'blue');
+});
+
+Test('replace', () => {
+	let database = new Database(localStorage);
+
+	database.addTable('cars');
+	let oldCar = database.create('cars', { brand: 'Tesla', color: 'red' });
+	let newCar = database.replace('cars', oldCar, { color: 'blue' });
+
+	let cars = database.select('cars');
+
+	assert.deepStrictEqual(cars.length, 1);
+	assert.deepStrictEqual(cars[0].brand, undefined);
+	assert.deepStrictEqual(cars[0].color, 'blue');
+});
+
+Test('replace by id', () => {
+	let database = new Database(localStorage);
+
+	database.addTable('cars');
+	let oldCar = database.create('cars', { id: 123, brand: 'Tesla', color: 'red' });
+	let newCar = database.replace('cars', 123, { color: 'blue' });
+
+	let cars = database.select('cars');
+
+	assert.deepStrictEqual(cars.length, 1);
+	assert.deepStrictEqual(cars[0].brand, undefined);
 	assert.deepStrictEqual(cars[0].color, 'blue');
 });
 
