@@ -2,6 +2,7 @@
 	"include": ["source/**/*"],
 	"compilerOptions": {
 		"allowJs": true,
+		"checkJs": true,
 		"module": "ESNext",
 		"declaration": true,
 		"emitDeclarationOnly": true,

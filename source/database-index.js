@@ -35,29 +35,10 @@ export default class Index {
 	}
 
 	/**
-	 * @param {Object|string} props
-	 * @param  {Array<string>} other
-	 * @returns {string}
-	 */
-	rowKey(props, ...other) {
-		let values;
-		if (typeof props === 'object') {
-			values = this.values.map(value => (typeof value === 'function' ? value(props) : props[value]));
-		} else {
-			values = [props, ...other];
-		}
-
-		let tableKey = this.table.key();
-		let indexKey = this.keys.reduce((result, key, index) => result + `[${key}=${values[index]}]`, '');
-
-		return `${tableKey}${indexKey}`;
-	}
-
-	/**
 	 * @param {Object} row
 	 */
 	add(row) {
-		let key = this.rowKey(row);
+		let key = this.key(row);
 		let ids = this.database.getItem(key) ?? [];
 		let index = ids.indexOf(row.id);
 		if (index === -1) {
@@ -69,7 +50,7 @@ export default class Index {
 	 * @param {Object} row
 	 */
 	remove(row) {
-		let key = this.rowKey(row);
+		let key = this.key(row);
 		let ids = this.database.getItem(key) ?? [];
 		let index = ids.indexOf(row.id);
 		if (index !== -1) {
@@ -82,12 +63,31 @@ export default class Index {
 	}
 
 	/**
+	 * @param {Object|string} rowOrValue
+	 * @param  {Array<string>} values
+	 * @returns {string}
+	 */
+	key(rowOrValue, ...values) {
+		let propValues;
+		if (typeof rowOrValue === 'object') {
+			propValues = this.values.map(value => (typeof value === 'function' ? value(rowOrValue) : rowOrValue[value]));
+		} else {
+			propValues = [rowOrValue, ...values];
+		}
+
+		let tableKey = this.table.key();
+		let indexKey = this.keys.reduce((result, key, index) => result + `[${key}=${propValues[index]}]`, '');
+
+		return `${tableKey}${indexKey}`;
+	}
+
+	/**
 	 * @param {Object|string} props
 	 * @param  {Array<string>} other
 	 * @returns {Array<Id>}
 	 */
-	find(props, ...other) {
-		let key = this.rowKey(props, ...other);
+	ids(props, ...other) {
+		let key = this.key(props, ...other);
 		let ids = this.database.getItem(key) ?? [];
 		return ids;
 	}
@@ -95,7 +95,7 @@ export default class Index {
 	destroy() {
 		let rows = this.table.select();
 		for (let row of rows) {
-			this.database.removeItem(this.rowKey(row));
+			this.database.removeItem(this.key(row));
 		}
 	}
 }

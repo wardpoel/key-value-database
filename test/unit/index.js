@@ -318,3 +318,46 @@ Test('dynamic functions', () => {
 	assert.deepStrictEqual(cars[0].color, 'red');
 	assert.deepStrictEqual(cars[1].color, 'blue');
 });
+
+Test('select with id property', () => {
+	let database = new Database(localStorage);
+
+	let table = database.addTable('cars', 'car');
+	let car = database.createCar({ color: 'red' });
+	let cars = database.select('cars', { id: car.id });
+
+	assert.strictEqual(cars.length, 1);
+	assert.strictEqual(cars[0].color, car.color);
+});
+
+Test('select with id property and autoindex', () => {
+	let database = new Database(localStorage);
+
+	let table = database.addTable('cars', 'car');
+	let car = database.createCar({ color: 'red' });
+	let cars = database.select('cars', { id: car.id }, true);
+
+	assert.strictEqual(cars.length, 1);
+	assert.strictEqual(cars[0].color, car.color);
+});
+
+Test('select with id and equal properties', () => {
+	let database = new Database(localStorage);
+
+	let table = database.addTable('cars', 'car');
+	let car = database.createCar({ color: 'red' });
+	let cars = database.select('cars', { id: car.id, color: 'red' }, true);
+
+	assert.strictEqual(cars.length, 1);
+	assert.strictEqual(cars[0].color, car.color);
+});
+
+Test('select with id and different properties', () => {
+	let database = new Database(localStorage);
+
+	let table = database.addTable('cars', 'car');
+	let car = database.createCar({ color: 'red' });
+	let cars = database.select('cars', { id: car.id, color: 'blue' }, true);
+
+	assert.strictEqual(cars.length, 0);
+});

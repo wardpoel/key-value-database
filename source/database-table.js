@@ -1,5 +1,3 @@
-import Index from './database-index.js';
-
 import enumerate from './utilities/string/enumerate.js';
 import capitalize from './utilities/string/capitalize.js';
 import generateId, { alphabet } from './utilities/string/id.js';
@@ -59,10 +57,10 @@ export default class Table {
 		let keys = Object.keys(props);
 		if (keys.length === 0) return this.key();
 
-		let index = this.database.findIndex(this.name, ...keys);
+		let index = this.indexes.find(index => index.keys.length === keys.length && index.keys.every(key => keys.includes(key)));
 		if (index) {
-			return index.rowKey(props);
-		} else {
+			return index.key(props);
+		} else if (keys.includes('id') === false) {
 			if (process.env.NODE_ENV === 'development') {
 				let autoindexWarning;
 				if (autoindex) {
@@ -71,14 +69,12 @@ export default class Table {
 					autoindexWarning = `Please create an index for these properties.`;
 				}
 
-				console.warn(
-					`Finding "${this.name}" by ${enumerate(...keys)} can be slow without an index. ${autoindexWarning}`,
-				);
+				console.warn(`Finding "${this.name}" by ${enumerate(...keys)} can be slow without an index. ${autoindexWarning}`);
 			}
 
 			if (autoindex) {
 				let index = this.database.addIndex(this.name, ...keys);
-				let indexKey = index.rowKey(props);
+				let indexKey = index.key(props);
 				return indexKey;
 			}
 		}
@@ -102,22 +98,11 @@ export default class Table {
 	}
 
 	/**
-	 * @param {Id} id
-	 * @returns {Object|undefined}
-	 */
-	find(id) {
-		let key = this.rowKey(id);
-		let row = this.database.getItem(key);
-
-		return row;
-	}
-
-	/**
 	 * @param {Object} [props]
 	 * @param {boolean} autoindex
 	 * @returns {Array<Id>}
 	 */
-	index(props, autoindex = this.database.autoindex) {
+	ids(props, autoindex = this.database.autoindex) {
 		let key = this.indexKey(props, autoindex);
 		if (key) {
 			return this.database.getItem(key) ?? [];
@@ -131,12 +116,23 @@ export default class Table {
 	}
 
 	/**
+	 * @param {Id} id
+	 * @returns {Object|undefined}
+	 */
+	find(id) {
+		let key = this.rowKey(id);
+		let row = this.database.getItem(key);
+
+		return row;
+	}
+
+	/**
 	 * @param {Object|undefined} [props]
 	 * @param {boolean} autoindex
 	 * @returns {number}
 	 */
 	count(props, autoindex = this.database.autoindex) {
-		return this.index(props, autoindex).length;
+		return this.ids(props, autoindex).length;
 	}
 
 	/**
@@ -145,16 +141,25 @@ export default class Table {
 	 * @returns {Array<Object>|Object|undefined}
 	 */
 	select(props, autoindex = this.database.autoindex) {
-		let key = this.indexKey(props, autoindex);
-		if (key) {
-			let ids = this.database.getItem(key) ?? [];
-			let rows = ids.map(this.find.bind(this));
-			return rows;
+		let propsId;
+		if (propsId == undefined) {
+			let key = this.indexKey(props, autoindex);
+			if (key) {
+				let ids = this.database.getItem(key) ?? [];
+				let rows = ids.map(this.find.bind(this));
+				return rows;
+			} else {
+				let rows = this.select();
+				let keys = Object.keys(props);
+				let filter = rows.filter(item => keys.every(key => item[key] === props[key]));
+				return filter;
+			}
 		} else {
-			let rows = this.select();
+			let key = this.rowKey(propsId);
+			let row = this.database.getItem(key);
 			let keys = Object.keys(props);
-			let filter = rows.filter(item => keys.every(key => item[key] === props[key]));
-			return filter;
+			let filtered = keys.every(key => row[key] === props[key]);
+			if (filtered) return row;
 		}
 	}
 

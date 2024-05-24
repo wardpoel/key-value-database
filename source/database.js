@@ -10,7 +10,7 @@ import enumerate from './utilities/string/enumerate.js';
 export default class Database {
 	/**
 	 * @param {Storage} storage
-	 * @param {{ prefix?: string, migrations?: Array<function(database:Database):void>, autoindex?: boolean, entropy?: number }} [options]
+	 * @param {{ prefix?: string, migrations?: Array<function(Database):void>, autoindex?: boolean, entropy?: number }} [options]
 	 */
 	constructor(storage, options) {
 		let { prefix = '', migrations = [], autoindex = false, entropy = 1000000 } = options ?? {};
@@ -106,7 +106,7 @@ export default class Database {
 	/**
 	 * @param {string} tableName
 	 * @param  {Array<string>} indexKeys
-	 * @returns
+	 * @returns {Index|undefined}
 	 */
 	findIndex(tableName, ...indexKeys) {
 		let indexes = this.findTable(tableName)?.indexes;
@@ -185,21 +185,21 @@ export default class Database {
 
 	/**
 	 * @param {string} tableName
+	 * @param {Object} [props]
+	 * @param {boolean} [autoindex]
+	 * @returns {Array<Id>}
+	 */
+	ids(tableName, props, autoindex = this.autoindex) {
+		return this.assertTable(tableName).ids(props, autoindex);
+	}
+
+	/**
+	 * @param {string} tableName
 	 * @param {Id} id
 	 * @returns {Object|undefined}
 	 */
 	find(tableName, id) {
 		return this.assertTable(tableName).find(id);
-	}
-
-	/**
-	 * @param {string} tableName
-	 * @param {Object} [props]
-	 * @param {boolean} [autoindex]
-	 * @returns {Array<Id>}
-	 */
-	index(tableName, props, autoindex = this.autoindex) {
-		return this.assertTable(tableName).index(props, autoindex);
 	}
 
 	/**

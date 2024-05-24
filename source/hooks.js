@@ -1,39 +1,12 @@
 import { useRef, useMemo, useSyncExternalStore, useCallback } from 'react';
 
+/**
+ * @template T
+ * @typedef {import('react').MutableRefObject} MutableRefObject<T>
+ */
+
 /** @typedef {import('./database.js').Id} Id */
 /** @typedef {import('./database.js').default} Database */
-
-/**
- * @param {Database} database
- * @param {string} tableName
- * @param {Id} id
- */
-export function useFind(database, tableName, id) {
-	let snapshotCacheRef = useRef();
-
-	let subscribe = useCallback(
-		/**
-		 * @param {() => void} callback
-		 */
-		callback => {
-			return database.subscribeToRow(tableName, id, () => {
-				snapshotCacheRef.current = undefined;
-				callback();
-			});
-		},
-		[database, tableName, id],
-	);
-
-	let snapshot = function () {
-		if (snapshotCacheRef.current == undefined) {
-			snapshotCacheRef.current = database.find(tableName, id);
-		}
-
-		return snapshotCacheRef.current;
-	};
-
-	return useSyncExternalStore(subscribe, snapshot);
-}
 
 /**
  * @param {Database} database
@@ -41,7 +14,7 @@ export function useFind(database, tableName, id) {
  * @param {Object} [props]
  * @returns {Array<Id>}
  */
-export function useIndex(database, tableName, props = {}) {
+export function useResourceIds(database, tableName, props = {}) {
 	/** @type {React.MutableRefObject<Array<Id>>} */
 	let snapshotCacheRef = useRef();
 
@@ -72,7 +45,7 @@ export function useIndex(database, tableName, props = {}) {
 
 	let snapshot = function () {
 		if (snapshotCacheRef.current == undefined) {
-			snapshotCacheRef.current = database.index(tableName, props, true);
+			snapshotCacheRef.current = database.ids(tableName, props, true);
 		}
 
 		return snapshotCacheRef.current;
@@ -88,9 +61,42 @@ export function useIndex(database, tableName, props = {}) {
  * @returns {number}
  */
 export function useCount(database, tableName, props = {}) {
-	let index = useIndex(database, tableName, props);
+	let index = useResourceIds(database, tableName, props);
 	let count = index.length;
 	return count;
+}
+
+/**
+ * @param {Database} database
+ * @param {string} tableName
+ * @param {Id} id
+ * @returns {any}
+ */
+export function useResourceById(database, tableName, id) {
+	let snapshotCacheRef = useRef();
+
+	let subscribe = useCallback(
+		/**
+		 * @param {() => void} callback
+		 */
+		callback => {
+			return database.subscribeToRow(tableName, id, () => {
+				snapshotCacheRef.current = undefined;
+				callback();
+			});
+		},
+		[database, tableName, id],
+	);
+
+	let snapshot = function () {
+		if (snapshotCacheRef.current == undefined) {
+			snapshotCacheRef.current = database.find(tableName, id);
+		}
+
+		return snapshotCacheRef.current;
+	};
+
+	return useSyncExternalStore(subscribe, snapshot);
 }
 
 /**
@@ -99,7 +105,7 @@ export function useCount(database, tableName, props = {}) {
  * @param {Object} [props]
  * @returns {Array<Object>}
  */
-export function useSelect(database, tableName, props = {}) {
+export function useResources(database, tableName, props = {}) {
 	/** @type {MutableRefObject<Array<Id>>} */
 	let snapshotCacheRef = useRef();
 
