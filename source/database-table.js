@@ -19,12 +19,13 @@ export default class Table {
 		this.database = database;
 
 		if (entryName) {
+			database[`find${capitalize(entryName)}Ids`] = database.findIds.bind(database, tableName);
+			database[`find${capitalize(entryName)}ById`] = database.findById.bind(database, tableName);
 			database[`find${capitalize(tableName)}`] = database.find.bind(database, tableName);
 			database[`count${capitalize(tableName)}`] = database.count.bind(database, tableName);
 			database[`create${capitalize(entryName)}`] = database.create.bind(database, tableName);
-			database[`select${capitalize(tableName)}`] = database.select.bind(database, tableName);
-			database[`select${capitalize(entryName)}`] = database.select.bind(database, tableName);
 			database[`update${capitalize(entryName)}`] = database.update.bind(database, tableName);
+			database[`replace${capitalize(entryName)}`] = database.replace.bind(database, tableName);
 			database[`delete${capitalize(entryName)}`] = database.delete.bind(database, tableName);
 		}
 
@@ -102,12 +103,12 @@ export default class Table {
 	 * @param {boolean} autoindex
 	 * @returns {Array<Id>}
 	 */
-	ids(props, autoindex = this.database.autoindex) {
+	findIds(props, autoindex = this.database.autoindex) {
 		let key = this.indexKey(props, autoindex);
 		if (key) {
 			return this.database.getItem(key) ?? [];
 		} else {
-			let rows = this.select();
+			let rows = this.find();
 			let keys = Object.keys(props);
 			let selection = rows.filter(item => keys.every(key => item[key] === props[key]));
 			let selectionIds = selection.map(row => row.id);
@@ -119,7 +120,7 @@ export default class Table {
 	 * @param {Id} id
 	 * @returns {Object|undefined}
 	 */
-	find(id) {
+	findById(id) {
 		let key = this.rowKey(id);
 		let row = this.database.getItem(key);
 
@@ -132,7 +133,7 @@ export default class Table {
 	 * @returns {number}
 	 */
 	count(props, autoindex = this.database.autoindex) {
-		return this.ids(props, autoindex).length;
+		return this.findIds(props, autoindex).length;
 	}
 
 	/**
@@ -140,16 +141,16 @@ export default class Table {
 	 * @param {boolean} autoindex
 	 * @returns {Array<Object>|Object|undefined}
 	 */
-	select(props, autoindex = this.database.autoindex) {
+	find(props, autoindex = this.database.autoindex) {
 		let propsId;
 		if (propsId == undefined) {
 			let key = this.indexKey(props, autoindex);
 			if (key) {
 				let ids = this.database.getItem(key) ?? [];
-				let rows = ids.map(this.find.bind(this));
+				let rows = ids.map(this.findById.bind(this));
 				return rows;
 			} else {
-				let rows = this.select();
+				let rows = this.find();
 				let keys = Object.keys(props);
 				let filter = rows.filter(item => keys.every(key => item[key] === props[key]));
 				return filter;

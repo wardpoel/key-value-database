@@ -14,7 +14,7 @@ import { useRef, useMemo, useSyncExternalStore, useCallback } from 'react';
  * @param {Object} [props]
  * @returns {Array<Id>}
  */
-export function useResourceIds(database, tableName, props = {}) {
+export function useFindIds(database, tableName, props = {}) {
 	/** @type {React.MutableRefObject<Array<Id>>} */
 	let snapshotCacheRef = useRef();
 
@@ -45,7 +45,7 @@ export function useResourceIds(database, tableName, props = {}) {
 
 	let snapshot = function () {
 		if (snapshotCacheRef.current == undefined) {
-			snapshotCacheRef.current = database.ids(tableName, props, true);
+			snapshotCacheRef.current = database.findIds(tableName, props, true);
 		}
 
 		return snapshotCacheRef.current;
@@ -61,7 +61,7 @@ export function useResourceIds(database, tableName, props = {}) {
  * @returns {number}
  */
 export function useCount(database, tableName, props = {}) {
-	let index = useResourceIds(database, tableName, props);
+	let index = useFindIds(database, tableName, props);
 	let count = index.length;
 	return count;
 }
@@ -72,7 +72,7 @@ export function useCount(database, tableName, props = {}) {
  * @param {Id} id
  * @returns {any}
  */
-export function useResourceById(database, tableName, id) {
+export function useFindById(database, tableName, id) {
 	let snapshotCacheRef = useRef();
 
 	let subscribe = useCallback(
@@ -90,7 +90,7 @@ export function useResourceById(database, tableName, id) {
 
 	let snapshot = function () {
 		if (snapshotCacheRef.current == undefined) {
-			snapshotCacheRef.current = database.find(tableName, id);
+			snapshotCacheRef.current = database.findById(tableName, id);
 		}
 
 		return snapshotCacheRef.current;
@@ -105,7 +105,7 @@ export function useResourceById(database, tableName, id) {
  * @param {Object} [props]
  * @returns {Array<Object>}
  */
-export function useResources(database, tableName, props = {}) {
+export function useFind(database, tableName, props = {}) {
 	/** @type {MutableRefObject<Array<Id>>} */
 	let snapshotCacheRef = useRef();
 
@@ -136,7 +136,7 @@ export function useResources(database, tableName, props = {}) {
 
 	let snapshot = function () {
 		if (snapshotCacheRef.current == undefined) {
-			snapshotCacheRef.current = database.select(tableName, props, true);
+			snapshotCacheRef.current = database.find(tableName, props, true);
 		}
 
 		return snapshotCacheRef.current;

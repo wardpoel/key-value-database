@@ -111,9 +111,7 @@ export default class Database {
 	findIndex(tableName, ...indexKeys) {
 		let indexes = this.findTable(tableName)?.indexes;
 		if (indexes) {
-			return indexes.find(
-				index => index.keys.length === indexKeys.length && index.keys.every(key => indexKeys.includes(key)),
-			);
+			return indexes.find(index => index.keys.length === indexKeys.length && index.keys.every(key => indexKeys.includes(key)));
 		}
 	}
 
@@ -124,8 +122,7 @@ export default class Database {
 	 */
 	assertIndex(tableName, ...indexKeys) {
 		let index = this.findIndex(tableName, ...indexKeys);
-		if (index == undefined)
-			throw new Error(`Table "${tableName}" does not have an index for ${enumerate(...indexKeys)}`);
+		if (index == undefined) throw new Error(`Table "${tableName}" does not have an index for ${enumerate(...indexKeys)}`);
 		return index;
 	}
 
@@ -189,8 +186,8 @@ export default class Database {
 	 * @param {boolean} [autoindex]
 	 * @returns {Array<Id>}
 	 */
-	ids(tableName, props, autoindex = this.autoindex) {
-		return this.assertTable(tableName).ids(props, autoindex);
+	findIds(tableName, props, autoindex = this.autoindex) {
+		return this.assertTable(tableName).findIds(props, autoindex);
 	}
 
 	/**
@@ -198,8 +195,8 @@ export default class Database {
 	 * @param {Id} id
 	 * @returns {Object|undefined}
 	 */
-	find(tableName, id) {
-		return this.assertTable(tableName).find(id);
+	findById(tableName, id) {
+		return this.assertTable(tableName).findById(id);
 	}
 
 	/**
@@ -218,8 +215,8 @@ export default class Database {
 	 * @param {boolean} [autoindex]
 	 * @returns {Array<Object>|Object}
 	 */
-	select(tableName, props, autoindex = this.autoindex) {
-		return this.assertTable(tableName).select(props, autoindex);
+	find(tableName, props, autoindex = this.autoindex) {
+		return this.assertTable(tableName).find(props, autoindex);
 	}
 
 	/**

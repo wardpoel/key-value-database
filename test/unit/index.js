@@ -36,7 +36,7 @@ Test('create table', () => {
 
 	let table = database.addTable('cars');
 
-	let cars = database.select('cars');
+	let cars = database.find('cars');
 
 	assert.deepStrictEqual(cars.length, 0);
 });
@@ -49,7 +49,7 @@ Test('create row', () => {
 
 	assert.deepStrictEqual(car.color, 'blue');
 
-	let cars = database.select('cars');
+	let cars = database.find('cars');
 
 	assert.deepStrictEqual(cars.length, 1);
 	assert.deepStrictEqual(cars[0].color, 'blue');
@@ -64,7 +64,7 @@ Test('create row with id', () => {
 
 	assert.deepStrictEqual(car.id, 'abc');
 
-	let cars = database.select('cars');
+	let cars = database.find('cars');
 
 	assert.deepStrictEqual(cars[0].id, 'abc');
 });
@@ -75,7 +75,7 @@ Test('create row without id', () => {
 	let table = database.addTable('cars');
 
 	let car = database.create('cars', { color: 'blue' });
-	let cars = database.select('cars');
+	let cars = database.find('cars');
 
 	assert.deepStrictEqual(car.id, cars[0].id);
 	assert.notDeepStrictEqual(car.id, undefined);
@@ -134,7 +134,7 @@ Test('create row before index', () => {
 	let car2 = database.create('cars', { color: 'blue' });
 	let car3 = database.create('cars', { color: 'red' });
 	let index = database.addIndex('cars', 'color');
-	let cars = database.select('cars', { color: 'red' });
+	let cars = database.find('cars', { color: 'red' });
 
 	assert.deepStrictEqual(cars.length, 2);
 	assert.deepStrictEqual(cars[0].color, 'red');
@@ -149,7 +149,7 @@ Test('create row after index', () => {
 	let car1 = database.create('cars', { color: 'red' });
 	let car2 = database.create('cars', { color: 'blue' });
 	let car3 = database.create('cars', { color: 'red' });
-	let cars = database.select('cars', { color: 'red' });
+	let cars = database.find('cars', { color: 'red' });
 
 	assert.deepStrictEqual(cars.length, 2);
 	assert.deepStrictEqual(cars[0].color, 'red');
@@ -165,7 +165,7 @@ Test('create index with multiple attributes', () => {
 	let car2 = database.create('cars', { brand: 'chevrolet', color: 'blue' });
 	let car3 = database.create('cars', { brand: 'chevrolet', color: 'red' });
 	let car4 = database.create('cars', { brand: 'chevrolet', color: 'red' });
-	let cars = database.select('cars', { brand: 'chevrolet', color: 'red' });
+	let cars = database.find('cars', { brand: 'chevrolet', color: 'red' });
 
 	assert.deepStrictEqual(cars.length, 2);
 	assert.deepStrictEqual(cars[0].color, 'red');
@@ -180,7 +180,7 @@ Test('delete row', () => {
 	database.addTable('cars');
 	let car = database.create('cars', { color: 'red' });
 	let deletedCar = database.delete('cars', car);
-	let cars = database.select('cars');
+	let cars = database.find('cars');
 
 	assert.deepStrictEqual(cars.length, 0);
 	assert.deepStrictEqual(deletedCar.color, 'red');
@@ -192,7 +192,7 @@ Test('delete row as id', () => {
 	let table = database.addTable('cars');
 	let car = database.create('cars', { id: '123', color: 'red' });
 	let deletedCar = database.delete('cars', '123');
-	let cars = database.select('cars');
+	let cars = database.find('cars');
 
 	assert.deepStrictEqual(cars.length, 0);
 	assert.deepStrictEqual(deletedCar.color, 'red');
@@ -204,7 +204,7 @@ Test('delete row with id', () => {
 	let table = database.addTable('cars');
 	let car = database.create('cars', { id: '123', color: 'red' });
 	let deletedCar = database.delete('cars', { id: '123' });
-	let cars = database.select('cars');
+	let cars = database.find('cars');
 
 	assert.deepStrictEqual(cars.length, 0);
 	assert.deepStrictEqual(deletedCar.color, 'red');
@@ -219,7 +219,7 @@ Test('delete table', () => {
 	database.removeTable('cars');
 	database.addTable('cars');
 
-	let cars = database.select('cars');
+	let cars = database.find('cars');
 
 	assert.deepStrictEqual(cars.length, 0);
 });
@@ -231,7 +231,7 @@ Test('update', () => {
 	let oldCar = database.create('cars', { brand: 'Tesla', color: 'red' });
 	let newCar = database.update('cars', oldCar, { color: 'blue' });
 
-	let cars = database.select('cars');
+	let cars = database.find('cars');
 
 	assert.deepStrictEqual(cars.length, 1);
 	assert.deepStrictEqual(cars[0].brand, 'Tesla');
@@ -245,7 +245,7 @@ Test('update by id', () => {
 	let oldCar = database.create('cars', { id: 123, brand: 'Tesla', color: 'red' });
 	let newCar = database.update('cars', 123, { color: 'blue' });
 
-	let cars = database.select('cars');
+	let cars = database.find('cars');
 
 	assert.deepStrictEqual(cars.length, 1);
 	assert.deepStrictEqual(cars[0].brand, 'Tesla');
@@ -259,7 +259,7 @@ Test('replace', () => {
 	let oldCar = database.create('cars', { brand: 'Tesla', color: 'red' });
 	let newCar = database.replace('cars', oldCar, { color: 'blue' });
 
-	let cars = database.select('cars');
+	let cars = database.find('cars');
 
 	assert.deepStrictEqual(cars.length, 1);
 	assert.deepStrictEqual(cars[0].brand, undefined);
@@ -273,7 +273,7 @@ Test('replace by id', () => {
 	let oldCar = database.create('cars', { id: 123, brand: 'Tesla', color: 'red' });
 	let newCar = database.replace('cars', 123, { color: 'blue' });
 
-	let cars = database.select('cars');
+	let cars = database.find('cars');
 
 	assert.deepStrictEqual(cars.length, 1);
 	assert.deepStrictEqual(cars[0].brand, undefined);
@@ -312,7 +312,7 @@ Test('dynamic functions', () => {
 	let table = database.addTable('cars', 'car');
 	let car1 = database.createCar({ color: 'red' });
 	let car2 = database.createCar({ color: 'blue' });
-	let cars = database.selectCars();
+	let cars = database.findCars();
 
 	assert.deepStrictEqual(cars.length, 2);
 	assert.deepStrictEqual(cars[0].color, 'red');
@@ -324,7 +324,7 @@ Test('select with id property', () => {
 
 	let table = database.addTable('cars', 'car');
 	let car = database.createCar({ color: 'red' });
-	let cars = database.select('cars', { id: car.id });
+	let cars = database.find('cars', { id: car.id });
 
 	assert.strictEqual(cars.length, 1);
 	assert.strictEqual(cars[0].color, car.color);
@@ -335,7 +335,7 @@ Test('select with id property and autoindex', () => {
 
 	let table = database.addTable('cars', 'car');
 	let car = database.createCar({ color: 'red' });
-	let cars = database.select('cars', { id: car.id }, true);
+	let cars = database.find('cars', { id: car.id }, true);
 
 	assert.strictEqual(cars.length, 1);
 	assert.strictEqual(cars[0].color, car.color);
@@ -346,7 +346,7 @@ Test('select with id and equal properties', () => {
 
 	let table = database.addTable('cars', 'car');
 	let car = database.createCar({ color: 'red' });
-	let cars = database.select('cars', { id: car.id, color: 'red' }, true);
+	let cars = database.find('cars', { id: car.id, color: 'red' }, true);
 
 	assert.strictEqual(cars.length, 1);
 	assert.strictEqual(cars[0].color, car.color);
@@ -357,7 +357,7 @@ Test('select with id and different properties', () => {
 
 	let table = database.addTable('cars', 'car');
 	let car = database.createCar({ color: 'red' });
-	let cars = database.select('cars', { id: car.id, color: 'blue' }, true);
+	let cars = database.find('cars', { id: car.id, color: 'blue' }, true);
 
 	assert.strictEqual(cars.length, 0);
 });
