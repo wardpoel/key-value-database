@@ -4,9 +4,11 @@
 	"description": "A database for key value stores",
 	"type": "module",
 	"main": "build/index.js",
-	"types": "build/types/index.d.ts",
+	"types": "build/types/source/index.d.ts",
 	"scripts": {
+		"test": "npm run test:unit",
 		"build": "esbuild source/index.js --outfile=build/index.js --bundle --format=esm --external:react --minify",
+		"bundle": "esbuild source/index.js --outfile=build/bundle.js --bundle --format=esm --external:react",
 		"develop": "esbuild source/index.js --outfile=build/index.js --bundle --format=esm --external:react --sourcemap --watch",
 		"test:unit": "node --test test/unit/index.js",
 		"test:manual": "vite --force --host",
@@ -22,7 +24,9 @@
 		"react": "^18.3.1"
 	},
 	"devDependencies": {
+		"@types/node-localstorage": "^1.3.3",
 		"@types/react": "^18.3.3",
+		"@types/react-dom": "^18.3.0",
 		"esbuild": "^0.20.2",
 		"eslint": "^8.57.0",
 		"eslint-plugin-react": "^7.34.1",

@@ -5,17 +5,23 @@ import JSONStorage from './storage/json.js';
 
 import enumerate from './utilities/string/enumerate.js';
 
-/** @typedef {string|number} Id */
+/** @typedef {import('./types.js').Id} Id */
+/** @typedef {import('./types.js').Props} Props */
+/** @typedef {import('./types.js').Resource} Resource */
+/** @typedef {import('./types.js').Migration} Migration */
 
 export default class Database {
 	/**
 	 * @param {Storage} storage
-	 * @param {{ prefix?: string, migrations?: Array<function(Database):void>, autoindex?: boolean, entropy?: number }} [options]
+	 * @param {{ prefix?: string, migrations?: Array<Migration>,autoindex?: boolean, entropy?: number}} [options]
 	 */
 	constructor(storage, options) {
-		let { prefix = '', migrations = [], autoindex = false, entropy = 1000000 } = options ?? {};
+		let prefix = options?.prefix ?? '';
+		let entropy = options?.entropy ?? 1000000;
+		let autoindex = options?.autoindex ?? false;
+		let migrations = options?.migrations ?? [];
 
-		/** @type {Object<string,Table>} */
+		/** @type {{ [key:string]: Table }} */
 		this.tables = {};
 
 		this.prefix = prefix;
@@ -30,6 +36,7 @@ export default class Database {
 
 		this.migrate();
 
+		/** @type {(event:StorageEvent) => void} */
 		this.storageEventHandler = event => {
 			let isSameStorage = this.storage.value === event.storageArea;
 			if (isSameStorage === false) return;
@@ -182,26 +189,26 @@ export default class Database {
 
 	/**
 	 * @param {string} tableName
-	 * @param {Object} [props]
+	 * @param {Props} [props]
 	 * @param {boolean} [autoindex]
 	 * @returns {Array<Id>}
 	 */
-	findIds(tableName, props, autoindex = this.autoindex) {
-		return this.assertTable(tableName).findIds(props, autoindex);
+	selectIds(tableName, props, autoindex = this.autoindex) {
+		return this.assertTable(tableName).selectIds(props, autoindex);
 	}
 
 	/**
 	 * @param {string} tableName
 	 * @param {Id} id
-	 * @returns {Object|undefined}
+	 * @returns {Resource|undefined}
 	 */
-	findById(tableName, id) {
-		return this.assertTable(tableName).findById(id);
+	selectById(tableName, id) {
+		return this.assertTable(tableName).selectById(id);
 	}
 
 	/**
 	 * @param {string} tableName
-	 * @param {Object} [props]
+	 * @param {Props} [props]
 	 * @param {boolean} [autoindex]
 	 * @returns {number}
 	 */
@@ -211,18 +218,18 @@ export default class Database {
 
 	/**
 	 * @param {string} tableName
-	 * @param {Object|Id} [props]
+	 * @param {Props} [props]
 	 * @param {boolean} [autoindex]
-	 * @returns {Array<Object>|Object}
+	 * @returns {Array<Resource>}
 	 */
-	find(tableName, props, autoindex = this.autoindex) {
-		return this.assertTable(tableName).find(props, autoindex);
+	select(tableName, props, autoindex = this.autoindex) {
+		return this.assertTable(tableName).select(props, autoindex);
 	}
 
 	/**
 	 * @param {string} tableName
-	 * @param {Object} props
-	 * @returns {Object}
+	 * @param {Props} props
+	 * @returns {Resource|undefined}
 	 */
 	create(tableName, props) {
 		if (this.execute === false) return;
@@ -232,9 +239,9 @@ export default class Database {
 
 	/**
 	 * @param {string} tableName
-	 * @param {Object|Id} row
-	 * @param {Object} [props]
-	 * @returns {Object}
+	 * @param {Resource|Id} row
+	 * @param {Props} [props]
+	 * @returns {Resource|undefined}
 	 */
 	update(tableName, row, props = {}) {
 		if (this.execute === false) return;
@@ -244,9 +251,9 @@ export default class Database {
 
 	/**
 	 * @param {string} tableName
-	 * @param {Object|Id} row
-	 * @param {Object} [props]
-	 * @returns {Object}
+	 * @param {Resource|Id} row
+	 * @param {Props} [props]
+	 * @returns {Resource|undefined}
 	 */
 	replace(tableName, row, props = {}) {
 		if (this.execute === false) return;
@@ -256,8 +263,8 @@ export default class Database {
 
 	/**
 	 * @param {string} tableName
-	 * @param {Object|Id} row
-	 * @returns {Object}
+	 * @param {Resource|Id} row
+	 * @returns {Resource|undefined}
 	 */
 	delete(tableName, row) {
 		if (this.execute === false) return;
@@ -276,7 +283,7 @@ export default class Database {
 
 	/**
 	 * @param {string} key
-	 * @returns {Object|undefined}
+	 * @returns {any}
 	 */
 	getItem(key) {
 		return this.storage.getItem(key);
@@ -284,7 +291,7 @@ export default class Database {
 
 	/**
 	 * @param {string} key
-	 * @param {Object} value
+	 * @param {any} value
 	 */
 	setItem(key, value) {
 		this.storage.setItem(key, value);
@@ -325,6 +332,7 @@ export default class Database {
 
 		let table = this.assertTable(tableName);
 		let indexKey = table.indexKey(props);
+		if (indexKey == undefined) throw new Error('Could not find index key');
 		let unsubscribe = this.rowListeners.add(indexKey, callback);
 		return unsubscribe;
 	}
@@ -340,6 +348,8 @@ export default class Database {
 
 		let table = this.assertTable(tableName);
 		let indexKey = table.indexKey(props);
+		if (indexKey == undefined) throw new Error('Could not find index key');
+
 		let indexIds = this.storage.getItem(indexKey) ?? [];
 		for (let id of indexIds) {
 			this.rowListeners.add(table.rowKey(id), callback);

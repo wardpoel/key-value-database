@@ -1,6 +1,8 @@
 {
-	"include": ["source/**/*"],
+	"include": ["source/**/*", "test/**/*"],
 	"compilerOptions": {
+		"jsx": "react-jsx",
+		"strict": true,
 		"allowJs": true,
 		"checkJs": true,
 		"module": "ESNext",
@@ -8,6 +10,8 @@
 		"emitDeclarationOnly": true,
 		"declarationDir": "build/types",
 		"declarationMap": true,
-		"moduleResolution": "Bundler"
+		"moduleResolution": "Bundler",
+		"noUnusedLocals": false,
+		"noUnusedParameters": false
 	}
 }

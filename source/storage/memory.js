@@ -1,13 +1,15 @@
 export default class MemoryStorage {
+	/** @param {Storage} storage */
 	constructor(storage) {
 		this.value = Object.create(null);
 
 		if (storage) {
 			for (let index = 0; index < storage.length; index++) {
 				let key = storage.key(index);
-				let value = storage.getItem(key);
-
-				this.value[key] = value;
+				if (key) {
+					let value = storage.getItem(key);
+					this.value[key] = value;
+				}
 			}
 		}
 	}

@@ -1,4 +1,6 @@
-import Database, { useFind, useSelect, useIndex } from '../../source/index.js';
+import Database, { useSelect, useSelectById, useSelectIds } from '../../source/index.js';
+
+/** @typedef {import('../../source/types.js').Id} Id */
 
 let database = new Database(localStorage, {
 	migrations: [
@@ -9,18 +11,17 @@ let database = new Database(localStorage, {
 	],
 });
 
+/** @type {Object<string,string>} */
 const COLORS = { red: '🚗', blue: '🚙' };
 
 let useSelectCars = useSelect.bind(this, database, 'cars');
 
 export default function Application() {
-	let carIds = useIndex(database, 'cars');
+	let carIds = useSelectIds(database, 'cars');
 	let carElements = carIds.map(id => <Car key={id} id={id} />);
 
 	let filteredCars = useSelectCars({ brand: 'Tesla', color: 'blue' });
-	let filteredCarElements = filteredCars.map(car => (
-		<Car key={car.id} id={car.id} brand={car.brand} color={car.color} />
-	));
+	let filteredCarElements = filteredCars.map(car => <Car key={car.id} id={car.id} brand={car.brand} color={car.color} />);
 
 	function handleClick() {
 		let brand = Math.random() < 0.5 ? 'Kia' : 'Tesla';
@@ -38,16 +39,17 @@ export default function Application() {
 	);
 }
 
+/** @param {{id: Id, brand?: string, color?: string}} props */
 function Car(props) {
 	let carId = props.id;
 
-	/** @type {{ id: string | number, color: string, brand: string }} */
-	let car = useFind(database, 'cars', carId);
+	let car = useSelectById(database, 'cars', carId);
 
-	let { brand = props.brand ?? car.brand, color = props.color ?? car.color } = car;
+	let brand = props.brand ?? car?.brand;
+	let color = props.color ?? car?.color;
 
 	function handleClick() {
-		database.update('cars', carId, { color: car.color === 'blue' ? 'red' : 'blue' });
+		database.update('cars', carId, { color: car?.color === 'blue' ? 'red' : 'blue' });
 	}
 
 	if (car) {

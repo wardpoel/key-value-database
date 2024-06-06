@@ -2,9 +2,11 @@ import enumerate from './utilities/string/enumerate.js';
 import capitalize from './utilities/string/capitalize.js';
 import generateId, { alphabet } from './utilities/string/id.js';
 
-/** @typedef {import('./database.js').Id} Id */
-/** @typedef {import('./database.js').default} Database */
-/** @typedef {import('./database-index.js').default} Index */
+/** @typedef {import('./types.js').Id} Id */
+/** @typedef {import('./types.js').Props} Props */
+/** @typedef {import('./types.js').Index} Index */
+/** @typedef {import('./types.js').Database} Database */
+/** @typedef {import('./types.js').Resource} Resource */
 
 export default class Table {
 	/**
@@ -19,13 +21,21 @@ export default class Table {
 		this.database = database;
 
 		if (entryName) {
-			database[`find${capitalize(entryName)}Ids`] = database.findIds.bind(database, tableName);
-			database[`find${capitalize(entryName)}ById`] = database.findById.bind(database, tableName);
-			database[`find${capitalize(tableName)}`] = database.find.bind(database, tableName);
+			// @ts-ignore
+			database[`select${capitalize(entryName)}Ids`] = database.selectIds.bind(database, tableName);
+			// @ts-ignore
+			database[`select${capitalize(entryName)}ById`] = database.selectById.bind(database, tableName);
+			// @ts-ignore
+			database[`select${capitalize(tableName)}`] = database.select.bind(database, tableName);
+			// @ts-ignore
 			database[`count${capitalize(tableName)}`] = database.count.bind(database, tableName);
+			// @ts-ignore
 			database[`create${capitalize(entryName)}`] = database.create.bind(database, tableName);
+			// @ts-ignore
 			database[`update${capitalize(entryName)}`] = database.update.bind(database, tableName);
+			// @ts-ignore
 			database[`replace${capitalize(entryName)}`] = database.replace.bind(database, tableName);
+			// @ts-ignore
 			database[`delete${capitalize(entryName)}`] = database.delete.bind(database, tableName);
 		}
 
@@ -48,7 +58,7 @@ export default class Table {
 	}
 
 	/**
-	 * @param {Object} props
+	 * @param {Props|undefined} props
 	 * @param {boolean} autoindex
 	 * @returns {string|undefined}
 	 */
@@ -88,6 +98,8 @@ export default class Table {
 	id(entropy = this.database.entropy) {
 		let key = this.key();
 		let ids = this.database.getItem(key) ?? [];
+		if (ids instanceof Array === false) throw new Error('Expected table ids to be an array');
+
 		let size = Math.ceil(Math.log2(entropy * Math.max(ids.length, 1)) / Math.log2(alphabet.length));
 
 		let id;
@@ -99,16 +111,20 @@ export default class Table {
 	}
 
 	/**
-	 * @param {Object} [props]
+	 * @param {Props} [props]
 	 * @param {boolean} autoindex
 	 * @returns {Array<Id>}
 	 */
-	findIds(props, autoindex = this.database.autoindex) {
+	selectIds(props, autoindex = this.database.autoindex) {
 		let key = this.indexKey(props, autoindex);
 		if (key) {
-			return this.database.getItem(key) ?? [];
+			let ids = this.database.getItem(key) ?? [];
+			if (ids instanceof Array === false) throw new Error('Expected index ids to be an array');
+			return ids;
 		} else {
-			let rows = this.find();
+			if (props == undefined) throw new Error(`Expected props to not be undefined`);
+
+			let rows = this.select();
 			let keys = Object.keys(props);
 			let selection = rows.filter(item => keys.every(key => item[key] === props[key]));
 			let selectionIds = selection.map(row => row.id);
@@ -118,9 +134,9 @@ export default class Table {
 
 	/**
 	 * @param {Id} id
-	 * @returns {Object|undefined}
+	 * @returns {Resource|undefined}
 	 */
-	findById(id) {
+	selectById(id) {
 		let key = this.rowKey(id);
 		let row = this.database.getItem(key);
 
@@ -133,40 +149,50 @@ export default class Table {
 	 * @returns {number}
 	 */
 	count(props, autoindex = this.database.autoindex) {
-		return this.findIds(props, autoindex).length;
+		return this.selectIds(props, autoindex).length;
 	}
 
 	/**
-	 * @param {Object|Id|undefined} [props]
+	 * @param {Props} [props]
 	 * @param {boolean} autoindex
-	 * @returns {Array<Object>|Object|undefined}
+	 * @returns {Array<Resource>}
 	 */
-	find(props, autoindex = this.database.autoindex) {
-		let propsId;
-		if (propsId == undefined) {
+	select(props, autoindex = this.database.autoindex) {
+		if (props?.id == undefined) {
 			let key = this.indexKey(props, autoindex);
 			if (key) {
 				let ids = this.database.getItem(key) ?? [];
-				let rows = ids.map(this.findById.bind(this));
-				return rows;
+				if (ids instanceof Array === false) throw new Error('Expected index to be an array');
+
+				let rows = ids.map(this.selectById.bind(this));
+				let filtered = rows.filter(/** @type {<T>(row: T | undefined) => row is T} */ row => row !== undefined);
+				return filtered;
 			} else {
-				let rows = this.find();
-				let keys = Object.keys(props);
-				let filter = rows.filter(item => keys.every(key => item[key] === props[key]));
-				return filter;
+				let rows = this.select();
+				if (props) {
+					let keys = Object.keys(props);
+					let filter = rows.filter(item => keys.every(key => item[key] === props[key]));
+					return filter;
+				} else {
+					return rows;
+				}
 			}
 		} else {
-			let key = this.rowKey(propsId);
+			let key = this.rowKey(props.id);
 			let row = this.database.getItem(key);
 			let keys = Object.keys(props);
 			let filtered = keys.every(key => row[key] === props[key]);
-			if (filtered) return row;
+			if (filtered) {
+				return [row];
+			} else {
+				return [];
+			}
 		}
 	}
 
 	/**
-	 * @param {Object} props
-	 * @returns {Object}
+	 * @param {Props} props
+	 * @returns {Resource}
 	 */
 	create(props) {
 		let { id, ...other } = props;
@@ -185,6 +211,7 @@ export default class Table {
 
 		let tableKey = this.key();
 		let tableIds = this.database.getItem(tableKey) ?? [];
+		if (tableIds instanceof Array === false) throw Error('Expected table ids to be an array');
 		let filteredIds = tableIds.filter(id => id !== row.id);
 
 		this.database.setItem(rowKey, row);
@@ -205,9 +232,9 @@ export default class Table {
 	}
 
 	/**
-	 * @param {Id|Object} row
-	 * @param {Object} [props]
-	 * @returns {Object}
+	 * @param {Id|Resource} row
+	 * @param {Props} [props]
+	 * @returns {Resource}
 	 */
 	update(row, props = {}) {
 		let rowId = typeof row === 'object' ? row.id : row;
@@ -230,9 +257,9 @@ export default class Table {
 	}
 
 	/**
-	 * @param {Id|Object} row
-	 * @param {Object} [props]
-	 * @returns {Object}
+	 * @param {Id|Resource} row
+	 * @param {Props} [props]
+	 * @returns {Resource}
 	 */
 	replace(row, props = {}) {
 		let rowId = typeof row === 'object' ? row.id : row;
@@ -255,8 +282,8 @@ export default class Table {
 	}
 
 	/**
-	 * @param {Object} row
-	 * @returns {Object|Id}
+	 * @param {Resource|Id} row
+	 * @returns {Resource}
 	 */
 	delete(row) {
 		let rowId = typeof row === 'object' ? row.id : row;
@@ -273,6 +300,8 @@ export default class Table {
 
 		let tableKey = this.key();
 		let tableIds = this.database.getItem(tableKey) ?? [];
+		if (tableIds instanceof Array === false) throw new Error('Expected table ids to be an array');
+
 		let rowIndex = tableIds.indexOf(rowId);
 		if (rowIndex !== -1) {
 			this.database.setItem(tableKey, [...tableIds.slice(0, rowIndex), ...tableIds.slice(rowIndex + 1)]);

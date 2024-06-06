@@ -1,8 +1,10 @@
 import enumerate from './utilities/string/enumerate.js';
 
-/** @typedef {import('./database.js').Id} Id */
-/** @typedef {import('./database.js').default} Database */
-/** @typedef {import('./database-table.js').default} Table */
+/** @typedef {import('./types.js').Id} Id */
+/** @typedef {import('./types.js').Props} Props */
+/** @typedef {import('./types.js').Table} Table */
+/** @typedef {import('./types.js').Database} Database */
+/** @typedef {import('./types.js').Resource} Resource */
 
 export default class Index {
 	/**
@@ -35,7 +37,7 @@ export default class Index {
 	}
 
 	/**
-	 * @param {Object} row
+	 * @param {Resource} row
 	 */
 	add(row) {
 		let key = this.key(row);
@@ -47,7 +49,7 @@ export default class Index {
 	}
 
 	/**
-	 * @param {Object} row
+	 * @param {Resource} row
 	 */
 	remove(row) {
 		let key = this.key(row);
@@ -63,7 +65,7 @@ export default class Index {
 	}
 
 	/**
-	 * @param {Object|string} rowOrValue
+	 * @param {Props|string} rowOrValue
 	 * @param  {Array<string>} values
 	 * @returns {string}
 	 */
@@ -82,7 +84,7 @@ export default class Index {
 	}
 
 	/**
-	 * @param {Object|string} props
+	 * @param {Resource|string} props
 	 * @param  {Array<string>} other
 	 * @returns {Array<Id>}
 	 */

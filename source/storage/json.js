@@ -16,7 +16,7 @@ export default class JSONStorage {
 
 	/**
 	 * @param {string} key
-	 * @returns {Object|undefined}
+	 * @returns {any}
 	 */
 	getItem(key) {
 		let value = this.value.getItem(key);
@@ -27,7 +27,7 @@ export default class JSONStorage {
 
 	/**
 	 * @param {string} key
-	 * @param {Object} value
+	 * @param {any} value
 	 */
 	setItem(key, value) {
 		this.value.setItem(key, JSON.stringify(value));

@@ -1,10 +1,8 @@
-import { useRef, useCallback } from 'react';
-
-import useInsertionEffect from './use-insertion-effect.js';
+import { useRef, useCallback, useInsertionEffect } from 'react';
 
 /**
  * @template T
- * @typedef {import('react').MutableRefObject} MutableRefObject<T>
+ * @typedef {import('react').MutableRefObject<T>} MutableRefObject<T>
  */
 
 /**
@@ -21,6 +19,7 @@ export default function useImmutableCallback(callback, dependencies = []) {
 	});
 
 	return useCallback(
+		/** @param {any[]} args */
 		function (...args) {
 			return callbackRef.current?.(...args);
 		},

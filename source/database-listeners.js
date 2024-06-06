@@ -47,7 +47,7 @@ export default class Listeners {
 	}
 
 	/**
-	 * @param {string} [key]
+	 * @param {string|null} [key]
 	 */
 	notify(key) {
 		if (key) {
