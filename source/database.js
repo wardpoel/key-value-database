@@ -163,7 +163,7 @@ export default class Database {
 			try {
 				migration.call(this, this);
 
-				this.version = Math.max(version, index + 1);
+				this.version = index + 1;
 			} catch (error) {
 				this.storage.clear();
 				for (let [key, value] of backup) {
