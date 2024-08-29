@@ -29,7 +29,6 @@ export default class Database {
 		this.autoindex = autoindex;
 		this.migrations = migrations;
 
-		this.execute = true;
 		this.storage = new JSONStorage(storage);
 		this.rowListeners = new Listeners();
 		this.indexListeners = new Listeners();
@@ -157,12 +156,8 @@ export default class Database {
 	}
 
 	migrate() {
-		this.execute = false;
-
 		let version = this.version ?? 0;
-		for (let index = 0; index < this.migrations.length; index++) {
-			if (index === version) this.execute = true;
-
+		for (let index = version; index < this.migrations.length; index++) {
 			let backup = Object.entries(this.storage);
 			let migration = this.migrations[index];
 			try {
@@ -177,8 +172,6 @@ export default class Database {
 				throw error;
 			}
 		}
-
-		this.execute = true;
 	}
 
 	close() {
@@ -232,8 +225,6 @@ export default class Database {
 	 * @returns {Resource|undefined}
 	 */
 	create(tableName, props) {
-		if (this.execute === false) return;
-
 		return this.assertTable(tableName).create(props);
 	}
 
@@ -244,8 +235,6 @@ export default class Database {
 	 * @returns {Resource|undefined}
 	 */
 	update(tableName, row, props = {}) {
-		if (this.execute === false) return;
-
 		return this.assertTable(tableName).update(row, props);
 	}
 
@@ -256,8 +245,6 @@ export default class Database {
 	 * @returns {Resource|undefined}
 	 */
 	replace(tableName, row, props = {}) {
-		if (this.execute === false) return;
-
 		return this.assertTable(tableName).replace(row, props);
 	}
 
@@ -267,8 +254,6 @@ export default class Database {
 	 * @returns {Resource|undefined}
 	 */
 	delete(tableName, row) {
-		if (this.execute === false) return;
-
 		return this.assertTable(tableName).delete(row);
 	}
 
